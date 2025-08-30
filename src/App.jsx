@@ -103,12 +103,29 @@ function App() {
                 fx: ogNode.x,
                 fy: ogNode.y,
                 fz: ogNode.z,
+                color: ogNode.color || node.color,
+                textSize: ogNode.textSize || node.textSize,
               };
             } else {
               return node;
             }
           });
-          return { ...prevGraphData, nodes: newNodes, links: ogData.links || [] };
+          const newLinks = prevGraphData.links.map(link => {
+            const ogLink = ogData.links.find(ogLink => 
+              (ogLink.source === (typeof link.source === 'object' ? link.source.id : link.source) && ogLink.target === (typeof link.target === 'object' ? link.target.id : link.target)) ||
+              (ogLink.source === (typeof link.target === 'object' ? link.target.id : link.target) && ogLink.target === (typeof link.source === 'object' ? link.source.id : link.source))
+            );
+            if (ogLink) {
+              return {
+                ...link,
+                color: ogLink.color || link.color,
+                thickness: ogLink.thickness || link.thickness,
+              };
+            } else {
+              return link;
+            }
+          });
+          return { ...prevGraphData, nodes: newNodes, links: newLinks };
         });
         alert(`Loaded ${ogData.nodes.length} OG positions and ${ogData.links.length} links successfully!`);
         setLoadedFileName(selectedFileForLoad.name.replace(".json", "-OG.json"));
@@ -214,18 +231,22 @@ function App() {
   };
 
   const recordOGPositions = () => {
-    const fixedPositions = graphData.nodes.filter(node => node.fx !== null && node.fy !== null && node.fz !== null).map(node => ({
+    const fixedNodes = graphData.nodes.filter(node => node.fx !== null && node.fy !== null && node.fz !== null).map(node => ({
       id: node.id,
       x: node.fx,
       y: node.fy,
       z: node.fz,
+      color: node.color,
+      textSize: node.textSize,
     }));
     const recordedLinks = graphData.links.map(link => ({
       source: typeof link.source === 'object' ? link.source.id : link.source,
       target: typeof link.target === 'object' ? link.target.id : link.target,
+      color: link.color,
+      thickness: link.thickness,
     }));
-    setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
-    alert(`Recorded ${fixedPositions.length} fixed node positions and ${recordedLinks.length} links for OG mode!`);
+    setRecordedOGPositions({ nodes: fixedNodes, links: recordedLinks });
+    alert(`Recorded ${fixedNodes.length} fixed node positions and ${recordedLinks.length} links for OG mode!`);
   };
 
   const saveOGPositions = () => {
@@ -250,29 +271,52 @@ function App() {
     node.fy = node.y;
     node.fz = node.z;
     if (showOGMode) {
-      // Call recordOGPositions directly or ensure it's stable
-      // For now, let's ensure it's called.
-      const fixedPositions = graphData.nodes.filter(n => n.fx !== null && n.fy !== null && n.fz !== null).map(n => ({
-        id: n.id,
-        x: n.fx,
-        y: n.fy,
-        z: n.fz,
-      }));
-      const recordedLinks = graphData.links.map(link => ({
-        source: typeof link.source === 'object' ? link.source.id : link.source,
-        target: typeof link.target === 'object' ? link.target.id : link.target,
-      }));
-      setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
+      console.log("onNodeDragEnd: showOGMode is true");
+      // Update the graph data to reflect the fixed position
+      setGraphData(prevData => {
+        const updatedNodes = prevData.nodes.map(n => 
+          n.id === node.id ? { ...n, fx: node.x, fy: node.y, fz: node.z } : n
+        );
+        
+        // Record OG positions automatically
+        const fixedNodes = updatedNodes.filter(n => n.fx !== null && n.fy !== null && n.fz !== null).map(n => ({
+          id: n.id,
+          x: n.fx,
+          y: n.fy,
+          z: n.fz,
+          color: n.color,
+          textSize: n.textSize,
+        }));
+        const recordedLinks = prevData.links.map(link => ({
+          source: typeof link.source === 'object' ? link.source.id : link.source,
+          target: typeof link.target === 'object' ? link.target.id : link.target,
+          color: link.color,
+          thickness: link.thickness,
+        }));
+        setRecordedOGPositions({ nodes: fixedNodes, links: recordedLinks });
+        console.log("Recorded OG Positions after drag:", { nodes: fixedNodes, links: recordedLinks });
+        
+        return { ...prevData, nodes: updatedNodes };
+      });
     }
-  }, [showOGMode, graphData.nodes, graphData.links]);
+  }, [showOGMode]);
 
   const handleNodeClick = useCallback(node => {
+    console.log("handleNodeClick called with node:", node);
     setSelectedNodes(prevSelected => {
-      if (prevSelected.includes(node.id)) {
-        return prevSelected.filter(id => id !== node.id);
-      } else {
-        return [...prevSelected, node.id];
+      console.log("Previous selected nodes:", prevSelected);
+      const newSelection = prevSelected.includes(node.id)
+        ? prevSelected.filter(id => id !== node.id)
+            : [...prevSelected, node.id];
+      if (newSelection.length > 2) {
+        // If more than two nodes are selected, keep only the last two for linking purposes
+        // This allows single node selection for customization while still supporting linking
+        const finalSelection = [newSelection[newSelection.length - 2], newSelection[newSelection.length - 1]];
+        console.log("handleNodeClick: finalSelection (trimmed):", finalSelection);
+        return finalSelection;
       }
+      console.log("handleNodeClick: newSelection:", newSelection);
+      return newSelection;
     });
   }, []);
 
@@ -396,6 +440,131 @@ function App() {
                 <Button onClick={handleLoadOGFile} size="sm" className="w-full">
                   Load OG.json
                 </Button>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label>Node Customization (Selected Node)</Label>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {selectedNodes.length === 1 ? `Node: ${selectedNodes[0]}` : "Select 1 node to customize"}
+                </div>
+                <Input
+                  type="color"
+                  value={selectedNodes.length === 1 ? graphData.nodes.find(node => node.id === selectedNodes[0])?.color || "#1A75FF" : "#1A75FF"}
+                  onChange={(e) => {
+                    console.log("Node Color onChange - e.target.value:", e.target.value);
+                    console.log("Node Color onChange - selectedNodes:", selectedNodes);
+                    if (selectedNodes.length === 1) {
+                      setGraphData(prev => {
+                        const newNodes = prev.nodes.map(node =>
+                          node.id === selectedNodes[0]
+                            ? { ...node, color: e.target.value }
+                            : node
+                        );
+                        console.log("Node Color onChange - newNodes:", newNodes);
+                        return {
+                          ...prev,
+                          nodes: newNodes,
+                        };
+                      });
+                    }
+                  }}
+                  disabled={selectedNodes.length !== 1}
+                />
+                <Input
+                  type="number"
+                  placeholder="Node Size"
+                  min="1"
+                  max="20"
+                  step="0.5"
+                  value={selectedNodes.length === 1 ? graphData.nodes.find(node => node.id === selectedNodes[0])?.textSize || "" : ""}
+                  onChange={(e) => {
+                    console.log("Node Size onChange - e.target.value:", e.target.value);
+                    console.log("Node Size onChange - selectedNodes:", selectedNodes);
+                    if (selectedNodes.length === 1) {
+                      setGraphData(prev => {
+                        const newNodes = prev.nodes.map(node =>
+                          node.id === selectedNodes[0]
+                            ? { ...node, textSize: parseFloat(e.target.value) || 6 }
+                            : node
+                        );
+                        console.log("Node Size onChange - newNodes:", newNodes);
+                        return {
+                          ...prev,
+                          nodes: newNodes,
+                        };
+                      });
+                    }
+                  }}
+                  disabled={selectedNodes.length !== 1}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Link Customization (Selected Link)</Label>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {selectedNodes.length === 2 ? `Link: ${selectedNodes[0]} ↔ ${selectedNodes[1]}` : "Select 2 nodes to customize link"}
+                </div>
+                <Input
+                  type="color"
+                  value={selectedNodes.length === 2 ? (() => {
+                    const link = graphData.links.find(link => 
+                      ((typeof link.source === 'object' ? link.source.id : link.source) === selectedNodes[0] && 
+                       (typeof link.target === 'object' ? link.target.id : link.target) === selectedNodes[1]) || 
+                      ((typeof link.source === 'object' ? link.source.id : link.source) === selectedNodes[1] && 
+                       (typeof link.target === 'object' ? link.target.id : link.target) === selectedNodes[0])
+                    );
+                    return link?.color || "#F0F0F0";
+                  })() : "#F0F0F0"}
+                  onChange={(e) => {
+                    if (selectedNodes.length === 2) {
+                      setGraphData(prev => ({
+                        ...prev,
+                        links: prev.links.map(link => {
+                          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                          if ((sourceId === selectedNodes[0] && targetId === selectedNodes[1]) || 
+                              (sourceId === selectedNodes[1] && targetId === selectedNodes[0])) {
+                            return { ...link, color: e.target.value };
+                          }
+                          return link;
+                        }),
+                      }));
+                    }
+                  }}
+                  disabled={selectedNodes.length !== 2}
+                />
+                <Input
+                  type="number"
+                  placeholder="Link Thickness"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={selectedNodes.length === 2 ? (() => {
+                    const link = graphData.links.find(link => 
+                      ((typeof link.source === 'object' ? link.source.id : link.source) === selectedNodes[0] && 
+                       (typeof link.target === 'object' ? link.target.id : link.target) === selectedNodes[1]) || 
+                      ((typeof link.source === 'object' ? link.source.id : link.source) === selectedNodes[1] && 
+                       (typeof link.target === 'object' ? link.target.id : link.target) === selectedNodes[0])
+                    );
+                    return link?.thickness || "";
+                  })() : ""}
+                  onChange={(e) => {
+                    if (selectedNodes.length === 2) {
+                      setGraphData(prev => ({
+                        ...prev,
+                        links: prev.links.map(link => {
+                          const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                          const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                          if ((sourceId === selectedNodes[0] && targetId === selectedNodes[1]) || 
+                              (sourceId === selectedNodes[1] && targetId === selectedNodes[0])) {
+                            return { ...link, thickness: parseFloat(e.target.value) || 1 };
+                          }
+                          return link;
+                        }),
+                      }));
+                    }
+                  }}
+                  disabled={selectedNodes.length !== 2}
+                />
               </div>
               <Separator />
               <div className="space-y-2">
