@@ -1,0 +1,76 @@
+{
+  "nodes": [
+    {
+      "id": "Central",
+      "color": "#FF6B6B",
+      "textSize": 8,
+      "group": 1,
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "Branch1",
+      "color": "#4ECDC4",
+      "textSize": 6,
+      "group": 2,
+      "x": 100,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "Branch2",
+      "color": "#45B7D1",
+      "textSize": 6,
+      "group": 2,
+      "x": -100,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "Leaf1",
+      "color": "#96CEB4",
+      "textSize": 5,
+      "group": 3,
+      "x": 150,
+      "y": 50,
+      "z": 0
+    },
+    {
+      "id": "Leaf2",
+      "color": "#FFEAA7",
+      "textSize": 5,
+      "group": 3,
+      "x": 150,
+      "y": -50,
+      "z": 0
+    }
+  ],
+  "links": [
+    {
+      "source": "Central",
+      "target": "Branch1",
+      "color": "#F0F0F0",
+      "thickness": 2
+    },
+    {
+      "source": "Central",
+      "target": "Branch2",
+      "color": "#F0F0F0",
+      "thickness": 2
+    },
+    {
+      "source": "Branch1",
+      "target": "Leaf1",
+      "color": "#DDD",
+      "thickness": 1
+    },
+    {
+      "source": "Branch1",
+      "target": "Leaf2",
+      "color": "#DDD",
+      "thickness": 1
+    }
+  ]
+}
+
