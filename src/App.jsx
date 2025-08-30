@@ -15,7 +15,7 @@ function App() {
   const [newNodeId, setNewNodeId] = useState('');
   const [selectedNodes, setSelectedNodes] = useState([]);
   const [showOGMode, setShowOGMode] = useState(false);
-  const [recordedOGPositions, setRecordedOGPositions] = useState([]);
+  const [recordedOGPositions, setRecordedOGPositions] = useState({ nodes: [], links: [] });
   const [showControls, setShowControls] = useState(true);
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
 
@@ -91,7 +91,7 @@ function App() {
 
         setGraphData(prevGraphData => {
           const newNodes = prevGraphData.nodes.map(node => {
-            const ogNode = ogData.find(ogNode => ogNode.id === node.id);
+            const ogNode = ogData.nodes.find(ogNode => ogNode.id === node.id);
             if (ogNode) {
               return {
                 ...node,
@@ -106,9 +106,9 @@ function App() {
               return node;
             }
           });
-          return { ...prevGraphData, nodes: newNodes };
+          return { ...prevGraphData, nodes: newNodes, links: ogData.links || [] };
         });
-        alert(`Loaded ${ogData.length} OG positions successfully!`);
+        alert(`Loaded ${ogData.nodes.length} OG positions and ${ogData.links.length} links successfully!`);
         setSelectedFileForLoad(null);
       } catch (error) {
         console.error("Error parsing OG.json file:", error);
@@ -216,25 +216,29 @@ function App() {
       y: node.fy,
       z: node.fz,
     }));
-    setRecordedOGPositions(fixedPositions);
-    alert(`Recorded ${fixedPositions.length} fixed node positions for OG mode!`);
+    const recordedLinks = graphData.links.map(link => ({
+      source: typeof link.source === 'object' ? link.source.id : link.source,
+      target: typeof link.target === 'object' ? link.target.id : link.target,
+    }));
+    setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
+    alert(`Recorded ${fixedPositions.length} fixed node positions and ${recordedLinks.length} links for OG mode!`);
   };
 
   const saveOGPositions = () => {
-    if (recordedOGPositions.length === 0) {
-      alert('No OG positions to save. Please record positions first.');
+    if (recordedOGPositions.nodes.length === 0 && recordedOGPositions.links.length === 0) {
+      alert("No OG positions or links to save. Please record positions first.");
       return;
     }
-    const blob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = 'OG.json';
+    link.download = "OG.json";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    alert('OG.json saved successfully!');
+    alert("OG.json saved successfully!");
   };
 
   const onNodeDragEnd = useCallback(node => {
@@ -384,7 +388,7 @@ function App() {
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
-                Recorded OG Positions: {recordedOGPositions.length}
+                Recorded OG Positions: {recordedOGPositions.nodes.length} nodes, {recordedOGPositions.links.length} links
               </div>
             </CardContent>
           </Card>
