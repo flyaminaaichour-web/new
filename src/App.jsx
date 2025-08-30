@@ -64,6 +64,7 @@ function App() {
 
         setGraphData({ nodes, links });
         alert(`Loaded ${nodes.length} nodes and ${links.length} links successfully!`);
+        setSelectedFileForLoad(null);
       } catch (error) {
         console.error('Error parsing JSON file:', error);
         alert('Error parsing JSON file. Please ensure it is valid JSON.');
@@ -75,6 +76,46 @@ function App() {
   const handleNewGraph = () => {
     setGraphData({ nodes: [], links: [] });
     setSelectedFileForLoad(null);
+  };
+
+  const handleLoadOGFile = () => {
+    if (!selectedFileForLoad) {
+      alert("Please select an OG.json file first");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const ogData = JSON.parse(e.target.result);
+
+        setGraphData(prevGraphData => {
+          const newNodes = prevGraphData.nodes.map(node => {
+            const ogNode = ogData.find(ogNode => ogNode.id === node.id);
+            if (ogNode) {
+              return {
+                ...node,
+                x: ogNode.x,
+                y: ogNode.y,
+                z: ogNode.z,
+                fx: ogNode.x,
+                fy: ogNode.y,
+                fz: ogNode.z,
+              };
+            } else {
+              return node;
+            }
+          });
+          return { ...prevGraphData, nodes: newNodes };
+        });
+        alert(`Loaded ${ogData.length} OG positions successfully!`);
+        setSelectedFileForLoad(null);
+      } catch (error) {
+        console.error("Error parsing OG.json file:", error);
+        alert("Error parsing OG.json file. Please ensure it is valid JSON.");
+      }
+    };
+    reader.readAsText(selectedFileForLoad);
   };
 
   const addLink = () => {
@@ -154,7 +195,7 @@ function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    // Save OG.json if OG mode is active
+    // Save OG-suffixed JSON if OG mode is active and there are recorded positions
     if (showOGMode && recordedOGPositions.length > 0) {
       const ogBlob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: 'application/json' });
       const ogUrl = URL.createObjectURL(ogBlob);
@@ -169,14 +210,14 @@ function App() {
   };
 
   const recordOGPositions = () => {
-    const currentPositions = graphData.nodes.map(node => ({
+    const fixedPositions = graphData.nodes.filter(node => node.fx !== null && node.fy !== null && node.fz !== null).map(node => ({
       id: node.id,
-      x: node.x,
-      y: node.y,
-      z: node.z,
+      x: node.fx,
+      y: node.fy,
+      z: node.fz,
     }));
-    setRecordedOGPositions(currentPositions);
-    alert('Node positions recorded for OG mode!');
+    setRecordedOGPositions(fixedPositions);
+    alert(`Recorded ${fixedPositions.length} fixed node positions for OG mode!`);
   };
 
   const saveOGPositions = () => {
@@ -322,6 +363,18 @@ function App() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Load OG.json File</Label>
+                <Input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => setSelectedFileForLoad(e.target.files[0])}
+                />
+                <Button onClick={handleLoadOGFile} size="sm" className="w-full">
+                  Load OG.json
+                </Button>
+              </div>
+              <Separator />
               <div className="space-y-2">
                 <Button onClick={recordOGPositions} size="sm" className="w-full">
                   Record OG Positions
