@@ -13,6 +13,7 @@ function App() {
   const graphRef = useRef();
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [newNodeId, setNewNodeId] = useState('');
+  const [selectedNodes, setSelectedNodes] = useState([]);
   const [showControls, setShowControls] = useState(true);
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
 
@@ -74,6 +75,34 @@ function App() {
     setSelectedFileForLoad(null);
   };
 
+  const addLink = () => {
+    if (selectedNodes.length !== 2) {
+      alert("Please select exactly two nodes to create a link.");
+      return;
+    }
+
+    const [source, target] = selectedNodes;
+
+    if (graphData.links.some(link => (link.source === source && link.target === target) || (link.source === target && link.target === source))) {
+      alert("Link between these two nodes already exists.");
+      return;
+    }
+
+    const newLink = {
+      source,
+      target,
+      color: '#F0F0F0',
+      thickness: 1,
+    };
+
+    setGraphData(prev => ({
+      ...prev,
+      links: [...prev.links, newLink],
+    }));
+
+    setSelectedNodes([]); // Clear selection after adding link
+  };
+
   const addNode = () => {
     if (!newNodeId.trim()) {
       alert('Please enter a node ID');
@@ -128,6 +157,16 @@ function App() {
     node.fx = node.x;
     node.fy = node.y;
     node.fz = node.z;
+  }, []);
+
+  const handleNodeClick = useCallback(node => {
+    setSelectedNodes(prevSelected => {
+      if (prevSelected.includes(node.id)) {
+        return prevSelected.filter(id => id !== node.id);
+      } else {
+        return [...prevSelected, node.id];
+      }
+    });
   }, []);
 
   return (
@@ -192,6 +231,19 @@ function App() {
 
               <Separator />
 
+              {/* Add Link */}
+              <div className="space-y-2">
+                <Label>Add Link</Label>
+                <div className="text-sm text-muted-foreground">
+                  Selected for link: {selectedNodes.join(", ")}
+                </div>
+                <Button onClick={addLink} size="sm" className="w-full" disabled={selectedNodes.length !== 2}>
+                  Create Link
+                </Button>
+              </div>
+
+              <Separator />
+
               {/* Stats */}
               <div className="text-sm text-muted-foreground">
                 Nodes: {graphData.nodes.length} | Links: {graphData.links.length}
@@ -215,7 +267,8 @@ function App() {
         ref={graphRef}
         graphData={graphData}
         nodeLabel="id"
-        nodeColor={node => node.color || '#1A75FF'}
+        nodeColor={node => selectedNodes.includes(node.id) ? '#FFD700' : node.color || '#1A75FF'}
+        onNodeClick={handleNodeClick}
         linkColor={() => '#F0F0F0'}
         linkThreeObjectExtend={true}
         linkThreeObject={link => {
