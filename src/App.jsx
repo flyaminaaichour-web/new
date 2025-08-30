@@ -14,6 +14,8 @@ function App() {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [newNodeId, setNewNodeId] = useState('');
   const [selectedNodes, setSelectedNodes] = useState([]);
+  const [showOGMode, setShowOGMode] = useState(false);
+  const [recordedOGPositions, setRecordedOGPositions] = useState([]);
   const [showControls, setShowControls] = useState(true);
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
 
@@ -151,6 +153,47 @@ function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    // Save OG.json if OG mode is active
+    if (showOGMode && recordedOGPositions.length > 0) {
+      const ogBlob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: 'application/json' });
+      const ogUrl = URL.createObjectURL(ogBlob);
+      const ogLink = document.createElement('a');
+      ogLink.href = ogUrl;
+      ogLink.download = 'graphData-OG.json';
+      document.body.appendChild(ogLink);
+      ogLink.click();
+      document.body.removeChild(ogLink);
+      URL.revokeObjectURL(ogUrl);
+    }
+  };
+
+  const recordOGPositions = () => {
+    const currentPositions = graphData.nodes.map(node => ({
+      id: node.id,
+      x: node.x,
+      y: node.y,
+      z: node.z,
+    }));
+    setRecordedOGPositions(currentPositions);
+    alert('Node positions recorded for OG mode!');
+  };
+
+  const saveOGPositions = () => {
+    if (recordedOGPositions.length === 0) {
+      alert('No OG positions to save. Please record positions first.');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'OG.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    alert('OG.json saved successfully!');
   };
 
   const onNodeDragEnd = useCallback(node => {
@@ -244,9 +287,51 @@ function App() {
 
               <Separator />
 
+              {/* OG Mode Toggle */}
+              <div className="space-y-2">
+                <Button onClick={() => setShowOGMode(prev => !prev)} size="sm" className="w-full">
+                  {showOGMode ? "Hide OG Mode" : "Show OG Mode"}
+                </Button>
+              </div>
+
+              <Separator />
+
               {/* Stats */}
               <div className="text-sm text-muted-foreground">
                 Nodes: {graphData.nodes.length} | Links: {graphData.links.length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* OG Mode Panel */}
+      {showOGMode && (
+        <div className="absolute top-4 right-4 z-10 w-80">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                OG Mode
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOGMode(false)}
+                >
+                  Hide
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Button onClick={recordOGPositions} size="sm" className="w-full">
+                  Record OG Positions
+                </Button>
+                <Button onClick={saveOGPositions} size="sm" className="w-full">
+                  Save OG.json
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Recorded OG Positions: {recordedOGPositions.length}
               </div>
             </CardContent>
           </Card>
@@ -262,8 +347,7 @@ function App() {
         </Button>
       )}
 
-      {/* 3D Graph */}
-      <ForceGraph3D
+      {/* 3D Graph */}      <ForceGraph3D
         ref={graphRef}
         graphData={graphData}
         nodeLabel="id"
