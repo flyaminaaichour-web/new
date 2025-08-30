@@ -18,6 +18,7 @@ function App() {
   const [recordedOGPositions, setRecordedOGPositions] = useState({ nodes: [], links: [] });
   const [showControls, setShowControls] = useState(true);
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
+  const [loadedFileName, setLoadedFileName] = useState("graphData.json");
 
   // Sample data for testing
   useEffect(() => {
@@ -64,6 +65,7 @@ function App() {
 
         setGraphData({ nodes, links });
         alert(`Loaded ${nodes.length} nodes and ${links.length} links successfully!`);
+        setLoadedFileName(selectedFileForLoad.name);
         setSelectedFileForLoad(null);
       } catch (error) {
         console.error('Error parsing JSON file:', error);
@@ -109,6 +111,7 @@ function App() {
           return { ...prevGraphData, nodes: newNodes, links: ogData.links || [] };
         });
         alert(`Loaded ${ogData.nodes.length} OG positions and ${ogData.links.length} links successfully!`);
+        setLoadedFileName(selectedFileForLoad.name.replace(".json", "-OG.json"));
         setSelectedFileForLoad(null);
       } catch (error) {
         console.error("Error parsing OG.json file:", error);
@@ -189,19 +192,20 @@ function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'graphData.json';
+    link.download = loadedFileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
     // Save OG-suffixed JSON if OG mode is active and there are recorded positions
-    if (showOGMode && recordedOGPositions.length > 0) {
+    if (showOGMode && recordedOGPositions.nodes.length > 0) {
       const ogBlob = new Blob([JSON.stringify(recordedOGPositions, null, 2)], { type: 'application/json' });
       const ogUrl = URL.createObjectURL(ogBlob);
       const ogLink = document.createElement('a');
       ogLink.href = ogUrl;
-      ogLink.download = 'graphData-OG.json';
+      const ogFileName = loadedFileName.replace('.json', '-OG.json');
+      ogLink.download = ogFileName;
       document.body.appendChild(ogLink);
       ogLink.click();
       document.body.removeChild(ogLink);
@@ -245,7 +249,22 @@ function App() {
     node.fx = node.x;
     node.fy = node.y;
     node.fz = node.z;
-  }, []);
+    if (showOGMode) {
+      // Call recordOGPositions directly or ensure it's stable
+      // For now, let's ensure it's called.
+      const fixedPositions = graphData.nodes.filter(n => n.fx !== null && n.fy !== null && n.fz !== null).map(n => ({
+        id: n.id,
+        x: n.fx,
+        y: n.fy,
+        z: n.fz,
+      }));
+      const recordedLinks = graphData.links.map(link => ({
+        source: typeof link.source === 'object' ? link.source.id : link.source,
+        target: typeof link.target === 'object' ? link.target.id : link.target,
+      }));
+      setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
+    }
+  }, [showOGMode, graphData.nodes, graphData.links]);
 
   const handleNodeClick = useCallback(node => {
     setSelectedNodes(prevSelected => {
