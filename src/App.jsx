@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Separator } from '@/components/ui/separator.jsx';
 import './App.css';
+import GraphEditor from './components/GraphEditor';
 
 function App() {
   const graphRef = useRef();
@@ -592,7 +593,8 @@ function App() {
         </Button>
       )}
 
-      {/* 3D Graph */}      <ForceGraph3D
+      {/* 3D Graph */}
+      <ForceGraph3D
         ref={graphRef}
         graphData={graphData}
         nodeLabel="id"
@@ -638,25 +640,20 @@ function App() {
             const middlePos = {
               x: start.x + (end.x - start.x) / 2,
               y: start.y + (end.y - start.y) / 2,
-              z: start.z + (end.z - start.z) / 2
+              z: start.z + (end.z - start.z) / 2,
             };
             Object.assign(sprite.position, middlePos);
           }
         }}
         onNodeDragEnd={onNodeDragEnd}
-        nodeThreeObject={node => {
-          const sprite = new SpriteText(node.id);
-          sprite.material.depthWrite = false;
-          sprite.color = node.color || '#1A75FF';
-          sprite.textHeight = node.textSize || 6;
-          return sprite;
-        }}
-        width={window.innerWidth}
-        height={window.innerHeight}
       />
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4">
+        <GraphEditor />
+      </div>
     </div>
   );
 }
 
 export default App;
+
 
