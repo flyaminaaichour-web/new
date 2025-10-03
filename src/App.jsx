@@ -31,8 +31,8 @@ function App() {
         { id: 'Node3', color: '#4ECDC4', textSize: 6, x: 25, y: 50, z: 0 }
       ],
       links: [
-        { source: 'Node1', target: 'Node2', color: '#F0F0F0' },
-        { source: 'Node2', target: 'Node3', color: '#F0F0F0' }
+        { source: 'Node1', target: 'Node2', color: '#F0F0F0', thickness: 5 },
+        { source: 'Node2', target: 'Node3', color: '#F0F0F0', thickness: 1 }
       ]
     };
     setGraphData(sampleData);
@@ -473,49 +473,25 @@ function App() {
         nodeColor={node => selectedNodes.includes(node.id) ? '#FFD700' : node.color || '#1A75FF'}
         onNodeClick={handleNodeClick}
         linkColor={() => '#F0F0F0'}
+        linkWidth={link => link.thickness || 1}
         linkThreeObjectExtend={true}
         linkThreeObject={link => {
-          // Create a custom Three.js Line object for the link
-          const material = new THREE.LineBasicMaterial({ 
-            color: link.color || '#F0F0F0', 
-            transparent: true, 
-            opacity: 0.6
-          });
-          const geometry = new THREE.BufferGeometry();
-          geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-          const line = new THREE.Line(geometry, material);
-
-          // Add text sprite
+          // Add text sprite for the link
           const sprite = new SpriteText(
             `${typeof link.source === 'object' ? link.source.id : link.source} → ${typeof link.target === 'object' ? link.target.id : link.target}`
           );
           sprite.color = link.color || '#F0F0F0';
           sprite.textHeight = 1.5;
-          line.add(sprite);
-
-          return line;
+          return sprite;
         }}
-        linkPositionUpdate={(threeObject, { start, end }) => {
-          // This is the key function that redraws links when nodes move
-          const positions = threeObject.geometry.attributes.position.array;
-          positions[0] = start.x;
-          positions[1] = start.y;
-          positions[2] = start.z;
-          positions[3] = end.x;
-          positions[4] = end.y;
-          positions[5] = end.z;
-          threeObject.geometry.attributes.position.needsUpdate = true;
-
+        linkPositionUpdate={(sprite, { start, end }) => {
           // Update text sprite position
-          const sprite = threeObject.children[0];
-          if (sprite) {
-            const middlePos = {
-              x: start.x + (end.x - start.x) / 2,
-              y: start.y + (end.y - start.y) / 2,
-              z: start.z + (end.z - start.z) / 2
-            };
-            Object.assign(sprite.position, middlePos);
-          }
+          const middlePos = {
+            x: start.x + (end.x - start.x) / 2,
+            y: start.y + (end.y - start.y) / 2,
+            z: start.z + (end.z - start.z) / 2
+          };
+          Object.assign(sprite.position, middlePos);
         }}
         onNodeDragEnd={onNodeDragEnd}
         nodeThreeObject={node => {
