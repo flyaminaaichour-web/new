@@ -225,6 +225,8 @@ function App() {
     const recordedLinks = graphData.links.map(link => ({
       source: typeof link.source === 'object' ? link.source.id : link.source,
       target: typeof link.target === 'object' ? link.target.id : link.target,
+      color: link.color,
+      thickness: link.thickness,
     }));
     setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
     alert(`Recorded ${fixedPositions.length} fixed node positions and ${recordedLinks.length} links for OG mode!`);
@@ -261,6 +263,8 @@ function App() {
       const recordedLinks = graphData.links.map(link => ({
         source: typeof link.source === 'object' ? link.source.id : link.source,
         target: typeof link.target === 'object' ? link.target.id : link.target,
+        color: link.color,
+        thickness: link.thickness,
       }));
       setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
     }
@@ -473,6 +477,7 @@ function App() {
         nodeColor={node => selectedNodes.includes(node.id) ? '#FFD700' : node.color || '#1A75FF'}
         onNodeClick={handleNodeClick}
         linkColor={link => link.color || '#F0F0F0'}
+        linkOpacity={0.8}
         linkWidth={link => link.thickness || 1}
         linkThreeObjectExtend={true}
         linkThreeObject={link => {
