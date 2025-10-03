@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input.jsx';
 import { Label } from '@/components/ui/label.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx';
 import { Separator } from '@/components/ui/separator.jsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx';
+import { Slider } from '@/components/ui/slider.jsx';
 import './App.css';
 
 function App() {
@@ -21,6 +23,9 @@ function App() {
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
   const [loadedFileName, setLoadedFileName] = useState("graphData.json");
   const [isFocusMode, setIsFocusMode] = useState(false); // New state for focus mode
+  const [isLinkSelectionMode, setIsLinkSelectionMode] = useState(false); // Mode for selecting nodes to create links
+  const [selectedNodeForEdit, setSelectedNodeForEdit] = useState(null); // Node selected for property editing
+  const [selectedLinkForEdit, setSelectedLinkForEdit] = useState(null); // Link selected for property editing
 
   // Sample data for testing
   useEffect(() => {
@@ -123,6 +128,12 @@ function App() {
     reader.readAsText(selectedFileForLoad);
   };
 
+  const startLinkSelection = () => {
+    setIsLinkSelectionMode(true);
+    setSelectedNodes([]);
+    setSelectedNodeForEdit(null); // Close property editor
+  };
+
   const addLink = () => {
     if (selectedNodes.length !== 2) {
       alert("Please select exactly two nodes to create a link.");
@@ -149,6 +160,12 @@ function App() {
     }));
 
     setSelectedNodes([]); // Clear selection after adding link
+    setIsLinkSelectionMode(false); // Exit link selection mode
+  };
+
+  const cancelLinkSelection = () => {
+    setIsLinkSelectionMode(false);
+    setSelectedNodes([]);
   };
 
   const addNode = () => {
@@ -285,8 +302,8 @@ function App() {
         node, // lookAt ({ x, y, z })
         3000  // ms transition duration
       );
-    } else {
-      // Original node selection logic
+    } else if (isLinkSelectionMode) {
+      // Link selection mode: add to selectedNodes for link creation
       setSelectedNodes(prevSelected => {
         if (prevSelected.includes(node.id)) {
           return prevSelected.filter(id => id !== node.id);
@@ -294,8 +311,12 @@ function App() {
           return [...prevSelected, node.id];
         }
       });
+    } else {
+      // Property editing mode: open property editor for this node
+      setSelectedNodeForEdit(node);
+      setSelectedLinkForEdit(null); // Reset selected link
     }
-  }, [isFocusMode]);
+  }, [isFocusMode, isLinkSelectionMode]);
 
   const handleZoomOut = useCallback(() => {
     // Reset camera to a default zoomed-out position
@@ -371,12 +392,25 @@ function App() {
               {/* Add Link */}
               <div className="space-y-2">
                 <Label>Add Link</Label>
-                <div className="text-sm text-muted-foreground">
-                  Selected for link: {selectedNodes.join(", ")}
-                </div>
-                <Button onClick={addLink} size="sm" className="w-full" disabled={selectedNodes.length !== 2}>
-                  Create Link
-                </Button>
+                {!isLinkSelectionMode ? (
+                  <Button onClick={startLinkSelection} size="sm" className="w-full">
+                    Start Link Selection
+                  </Button>
+                ) : (
+                  <>
+                    <div className="text-sm text-muted-foreground">
+                      Selected for link: {selectedNodes.join(", ")}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={addLink} size="sm" className="flex-1" disabled={selectedNodes.length !== 2}>
+                        Create Link
+                      </Button>
+                      <Button onClick={cancelLinkSelection} size="sm" className="flex-1" variant="outline">
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               <Separator />
@@ -468,6 +502,184 @@ function App() {
         >
           Show Controls
         </Button>
+      )}
+
+      {/* Property Editor Panel */}
+      {selectedNodeForEdit && (
+        <div className="absolute bottom-4 right-4 z-10 w-80">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Edit Node: {selectedNodeForEdit.id}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedNodeForEdit(null);
+                    setSelectedLinkForEdit(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Node Properties */}
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Node Color</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="color"
+                      value={selectedNodeForEdit.color || '#1A75FF'}
+                      onChange={(e) => {
+                        const newColor = e.target.value;
+                        setGraphData(prev => ({
+                          ...prev,
+                          nodes: prev.nodes.map(n =>
+                            n.id === selectedNodeForEdit.id ? { ...n, color: newColor } : n
+                          )
+                        }));
+                        setSelectedNodeForEdit(prev => ({ ...prev, color: newColor }));
+                      }}
+                      className="w-20 h-10"
+                    />
+                    <span className="text-sm text-muted-foreground">{selectedNodeForEdit.color || '#1A75FF'}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Text Size: {selectedNodeForEdit.textSize || 6}</Label>
+                  <Slider
+                    value={[selectedNodeForEdit.textSize || 6]}
+                    onValueChange={(value) => {
+                      const newSize = value[0];
+                      setGraphData(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n =>
+                          n.id === selectedNodeForEdit.id ? { ...n, textSize: newSize } : n
+                        )
+                      }));
+                      setSelectedNodeForEdit(prev => ({ ...prev, textSize: newSize }));
+                    }}
+                    min={1}
+                    max={20}
+                    step={1}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Link Properties */}
+              <div className="space-y-3">
+                <Label>Connected Links</Label>
+                {(() => {
+                  const connectedLinks = graphData.links.filter(link => {
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                    return sourceId === selectedNodeForEdit.id || targetId === selectedNodeForEdit.id;
+                  });
+
+                  if (connectedLinks.length === 0) {
+                    return <p className="text-sm text-muted-foreground">No connected links</p>;
+                  }
+
+                  return (
+                    <>
+                      <Select
+                        value={selectedLinkForEdit ? `${typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source}-${typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target}` : ''}
+                        onValueChange={(value) => {
+                          const link = connectedLinks.find(l => {
+                            const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                            const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                            return `${sourceId}-${targetId}` === value;
+                          });
+                          setSelectedLinkForEdit(link);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a link to edit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {connectedLinks.map((link, index) => {
+                            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                            return (
+                              <SelectItem key={index} value={`${sourceId}-${targetId}`}>
+                                {sourceId} → {targetId}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedLinkForEdit && (
+                        <div className="space-y-3 mt-3">
+                          <div className="space-y-2">
+                            <Label>Link Color</Label>
+                            <div className="flex gap-2 items-center">
+                              <Input
+                                type="color"
+                                value={selectedLinkForEdit.color || '#F0F0F0'}
+                                onChange={(e) => {
+                                  const newColor = e.target.value;
+                                  setGraphData(prev => ({
+                                    ...prev,
+                                    links: prev.links.map(l => {
+                                      const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                                      const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
+                                      const selectedSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                                      const selectedTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                                      return (lSourceId === selectedSourceId && lTargetId === selectedTargetId)
+                                        ? { ...l, color: newColor }
+                                        : l;
+                                    })
+                                  }));
+                                  setSelectedLinkForEdit(prev => ({ ...prev, color: newColor }));
+                                }}
+                                className="w-20 h-10"
+                              />
+                              <span className="text-sm text-muted-foreground">{selectedLinkForEdit.color || '#F0F0F0'}</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Link Thickness: {selectedLinkForEdit.thickness || 1}</Label>
+                            <Slider
+                              value={[selectedLinkForEdit.thickness || 1]}
+                              onValueChange={(value) => {
+                                const newThickness = value[0];
+                                setGraphData(prev => ({
+                                  ...prev,
+                                  links: prev.links.map(l => {
+                                    const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                                    const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
+                                    const selectedSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                                    const selectedTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                                    return (lSourceId === selectedSourceId && lTargetId === selectedTargetId)
+                                      ? { ...l, thickness: newThickness }
+                                      : l;
+                                  })
+                                }));
+                                setSelectedLinkForEdit(prev => ({ ...prev, thickness: newThickness }));
+                              }}
+                              min={1}
+                              max={10}
+                              step={0.5}
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* 3D Graph */}      <ForceGraph3D
