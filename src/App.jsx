@@ -472,7 +472,7 @@ function App() {
         nodeLabel="id"
         nodeColor={node => selectedNodes.includes(node.id) ? '#FFD700' : node.color || '#1A75FF'}
         onNodeClick={handleNodeClick}
-        linkColor={() => '#F0F0F0'}
+        linkColor={link => link.color || '#F0F0F0'}
         linkWidth={link => link.thickness || 1}
         linkThreeObjectExtend={true}
         linkThreeObject={link => {
