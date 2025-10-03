@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import SpriteText from 'three-spritetext';
@@ -19,6 +20,7 @@ function App() {
   const [showControls, setShowControls] = useState(true);
   const [selectedFileForLoad, setSelectedFileForLoad] = useState(null);
   const [loadedFileName, setLoadedFileName] = useState("graphData.json");
+  const [isFocusMode, setIsFocusMode] = useState(false); // New state for focus mode
 
   // Sample data for testing
   useEffect(() => {
@@ -250,8 +252,6 @@ function App() {
     node.fy = node.y;
     node.fz = node.z;
     if (showOGMode) {
-      // Call recordOGPositions directly or ensure it's stable
-      // For now, let's ensure it's called.
       const fixedPositions = graphData.nodes.filter(n => n.fx !== null && n.fy !== null && n.fz !== null).map(n => ({
         id: n.id,
         x: n.fx,
@@ -267,13 +267,39 @@ function App() {
   }, [showOGMode, graphData.nodes, graphData.links]);
 
   const handleNodeClick = useCallback(node => {
-    setSelectedNodes(prevSelected => {
-      if (prevSelected.includes(node.id)) {
-        return prevSelected.filter(id => id !== node.id);
-      } else {
-        return [...prevSelected, node.id];
-      }
-    });
+    if (isFocusMode) {
+      // Focus on the clicked node
+      const distance = 40;
+      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+
+      const newPos = node.x || node.y || node.z
+        ? { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }
+        : { x: 0, y: 0, z: distance }; // special case if node is in (0,0,0)
+
+      graphRef.current.cameraPosition(
+        newPos, // new position
+        node, // lookAt ({ x, y, z })
+        3000  // ms transition duration
+      );
+    } else {
+      // Original node selection logic
+      setSelectedNodes(prevSelected => {
+        if (prevSelected.includes(node.id)) {
+          return prevSelected.filter(id => id !== node.id);
+        } else {
+          return [...prevSelected, node.id];
+        }
+      });
+    }
+  }, [isFocusMode]);
+
+  const handleZoomOut = useCallback(() => {
+    // Reset camera to a default zoomed-out position
+    graphRef.current.cameraPosition(
+      { x: 0, y: 0, z: 500 }, // A reasonable default position
+      { x: 0, y: 0, z: 0 },   // Look at the center
+      3000                    // Transition duration
+    );
   }, []);
 
   return (
@@ -346,6 +372,23 @@ function App() {
                 </div>
                 <Button onClick={addLink} size="sm" className="w-full" disabled={selectedNodes.length !== 2}>
                   Create Link
+                </Button>
+              </div>
+
+              <Separator />
+
+              {/* Focus Mode and Zoom Out Buttons */}
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setIsFocusMode(prev => !prev)}
+                  size="sm"
+                  className="w-full"
+                  variant={isFocusMode ? "default" : "outline"}
+                >
+                  {isFocusMode ? "Focus Mode: ON" : "Focus Mode: OFF"}
+                </Button>
+                <Button onClick={handleZoomOut} size="sm" className="w-full" variant="outline">
+                  Zoom Out
                 </Button>
               </div>
 
