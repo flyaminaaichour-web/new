@@ -175,40 +175,43 @@ function App() {
 
   const pullNodeCloser = () => {
     if (!selectedNodeForEdit || !selectedNodeToPull) {
-      alert("Please select a node to pull closer");
+      alert("Please select a target node");
       return;
     }
 
-    const targetNode = graphData.nodes.find(n => n.id === selectedNodeForEdit.id);
-    const nodeToPull = graphData.nodes.find(n => n.id === selectedNodeToPull);
+    const nodeToMove = graphData.nodes.find(n => n.id === selectedNodeForEdit.id);
+    const targetNode = graphData.nodes.find(n => n.id === selectedNodeToPull);
 
-    if (!targetNode || !nodeToPull) {
+    if (!nodeToMove || !targetNode) {
       alert("Could not find selected nodes");
       return;
     }
 
-    // Calculate the vector from nodeToPull to targetNode
-    const dx = targetNode.x - nodeToPull.x;
-    const dy = targetNode.y - nodeToPull.y;
-    const dz = targetNode.z - nodeToPull.z;
+    // Calculate the vector from nodeToMove to targetNode
+    const dx = targetNode.x - nodeToMove.x;
+    const dy = targetNode.y - nodeToMove.y;
+    const dz = targetNode.z - nodeToMove.z;
 
     // Calculate new position based on pull distance percentage
     const pullFactor = pullDistance / 100;
-    const newX = nodeToPull.x + (dx * pullFactor);
-    const newY = nodeToPull.y + (dy * pullFactor);
-    const newZ = nodeToPull.z + (dz * pullFactor);
+    const newX = nodeToMove.x + (dx * pullFactor);
+    const newY = nodeToMove.y + (dy * pullFactor);
+    const newZ = nodeToMove.z + (dz * pullFactor);
 
-    // Update the node position
+    // Update the node position (move the selected node)
     setGraphData(prev => ({
       ...prev,
       nodes: prev.nodes.map(n =>
-        n.id === selectedNodeToPull
+        n.id === selectedNodeForEdit.id
           ? { ...n, x: newX, y: newY, z: newZ, fx: newX, fy: newY, fz: newZ }
           : n
       )
     }));
 
-    alert(`Pulled ${selectedNodeToPull} ${pullDistance}% closer to ${selectedNodeForEdit.id}`);
+    // Update the selected node for edit to reflect new position
+    setSelectedNodeForEdit(prev => ({ ...prev, x: newX, y: newY, z: newZ, fx: newX, fy: newY, fz: newZ }));
+
+    alert(`Moved ${selectedNodeForEdit.id} ${pullDistance}% closer to ${selectedNodeToPull}`);
   };
 
   const addNode = () => {
@@ -862,7 +865,7 @@ function App() {
 
               {/* Pull Node Closer */}
               <div className="space-y-3">
-                <Label>Pull Connected Node Closer</Label>
+                <Label>Move This Node Closer To...</Label>
                 {(() => {
                   const connectedNodeIds = graphData.links
                     .filter(link => {
@@ -878,7 +881,7 @@ function App() {
                     .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
 
                   if (connectedNodeIds.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No connected nodes to pull</p>;
+                    return <p className="text-sm text-muted-foreground">No connected nodes available</p>;
                   }
 
                   return (
@@ -888,7 +891,7 @@ function App() {
                         onValueChange={(value) => setSelectedNodeToPull(value)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select node to pull" />
+                          <SelectValue placeholder="Select target node" />
                         </SelectTrigger>
                         <SelectContent>
                           {connectedNodeIds.map(nodeId => (
@@ -902,7 +905,7 @@ function App() {
                       {selectedNodeToPull && (
                         <>
                           <div className="space-y-2">
-                            <Label>Pull Distance: {pullDistance}%</Label>
+                            <Label>Move Distance: {pullDistance}%</Label>
                             <Slider
                               value={[pullDistance]}
                               onValueChange={(value) => setPullDistance(value[0])}
@@ -912,12 +915,12 @@ function App() {
                               className="w-full"
                             />
                             <p className="text-xs text-muted-foreground">
-                              {pullDistance}% of the distance between nodes
+                              Move {selectedNodeForEdit.id} {pullDistance}% closer to {selectedNodeToPull}
                             </p>
                           </div>
 
                           <Button onClick={pullNodeCloser} size="sm" className="w-full">
-                            Pull {selectedNodeToPull} Closer
+                            Move Closer to {selectedNodeToPull}
                           </Button>
                         </>
                       )}
