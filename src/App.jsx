@@ -378,22 +378,47 @@ function App() {
                   accept=".json"
                   onChange={(e) => setSelectedFileForLoad(e.target.files[0])}
                 />
-                <div className="flex gap-2">
-                  <Button onClick={handleLoadFile} size="sm" className="flex-1">
-                    Load File
-                  </Button>
-                  <Button onClick={saveGraphData} size="sm" className="flex-1">
-                    Save JSON
-                  </Button>
-                </div>
-                <Button onClick={handleNewGraph} variant="outline" size="sm" className="w-full">
-                  New Graph
+                <Button onClick={handleLoadFile} size="sm" className="w-full">
+                  Load File
                 </Button>
                 {selectedFileForLoad && (
                   <p className="text-xs text-muted-foreground">
                     Selected: {selectedFileForLoad.name}
                   </p>
                 )}
+                
+                <Separator className="my-3" />
+                
+                <Label>Save Filename</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter filename"
+                  value={loadedFileName}
+                  onChange={(e) => {
+                    let value = e.target.value;
+                    // Ensure .json extension
+                    if (value && !value.endsWith('.json')) {
+                      value = value.replace(/\.[^.]*$/, '') + '.json';
+                    }
+                    setLoadedFileName(value || 'graphData.json');
+                  }}
+                  onBlur={(e) => {
+                    // Add .json if missing when user leaves the field
+                    let value = e.target.value.trim();
+                    if (value && !value.endsWith('.json')) {
+                      setLoadedFileName(value + '.json');
+                    } else if (!value) {
+                      setLoadedFileName('graphData.json');
+                    }
+                  }}
+                />
+                <Button onClick={saveGraphData} size="sm" className="w-full">
+                  Save JSON
+                </Button>
+                
+                <Button onClick={handleNewGraph} variant="outline" size="sm" className="w-full">
+                  New Graph
+                </Button>
               </div>
 
               <Separator />
