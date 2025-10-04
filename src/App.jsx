@@ -135,14 +135,18 @@ function App() {
   };
 
   const addLink = () => {
-    if (selectedNodes.length !== 2) {
-      alert("Please select exactly two nodes to create a link.");
+    if (selectedNodes.length !== 2 || !selectedNodes[0] || !selectedNodes[1]) {
+      alert("Please select both source and target nodes to create a link.");
       return;
     }
 
     const [source, target] = selectedNodes;
 
-    if (graphData.links.some(link => (link.source === source && link.target === target) || (link.source === target && link.target === source))) {
+    if (graphData.links.some(link => {
+      const linkSource = typeof link.source === 'object' ? link.source.id : link.source;
+      const linkTarget = typeof link.target === 'object' ? link.target.id : link.target;
+      return (linkSource === source && linkTarget === target) || (linkSource === target && linkTarget === source);
+    })) {
       alert("Link between these two nodes already exists.");
       return;
     }
@@ -160,7 +164,6 @@ function App() {
     }));
 
     setSelectedNodes([]); // Clear selection after adding link
-    setIsLinkSelectionMode(false); // Exit link selection mode
   };
 
   const cancelLinkSelection = () => {
@@ -193,6 +196,22 @@ function App() {
     }));
 
     setNewNodeId('');
+
+    // Auto-focus camera on the newly created node
+    setTimeout(() => {
+      const distance = 40;
+      const distRatio = 1 + distance / Math.hypot(newNode.x, newNode.y, newNode.z);
+      const newPos = {
+        x: newNode.x * distRatio,
+        y: newNode.y * distRatio,
+        z: newNode.z * distRatio
+      };
+      graphRef.current.cameraPosition(
+        newPos,
+        newNode,
+        1500 // transition duration
+      );
+    }, 100); // Small delay to ensure node is rendered
   };
 
   const saveGraphData = () => {
@@ -303,12 +322,17 @@ function App() {
         3000  // ms transition duration
       );
     } else if (isLinkSelectionMode) {
-      // Link selection mode: add to selectedNodes for link creation
+      // Click mode for link creation: select nodes by clicking
       setSelectedNodes(prevSelected => {
         if (prevSelected.includes(node.id)) {
+          // Deselect if already selected
           return prevSelected.filter(id => id !== node.id);
-        } else {
+        } else if (prevSelected.length < 2) {
+          // Add to selection if less than 2 nodes selected
           return [...prevSelected, node.id];
+        } else {
+          // Replace second node if 2 already selected
+          return [prevSelected[0], node.id];
         }
       });
     } else {
@@ -391,24 +415,115 @@ function App() {
 
               {/* Add Link */}
               <div className="space-y-2">
-                <Label>Add Link</Label>
-                {!isLinkSelectionMode ? (
-                  <Button onClick={startLinkSelection} size="sm" className="w-full">
-                    Start Link Selection
-                  </Button>
+                <Label>Create Link Between Nodes</Label>
+                {graphData.nodes.length < 2 ? (
+                  <p className="text-sm text-muted-foreground">Need at least 2 nodes to create a link</p>
                 ) : (
                   <>
-                    <div className="text-sm text-muted-foreground">
-                      Selected for link: {selectedNodes.join(", ")}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={addLink} size="sm" className="flex-1" disabled={selectedNodes.length !== 2}>
-                        Create Link
-                      </Button>
-                      <Button onClick={cancelLinkSelection} size="sm" className="flex-1" variant="outline">
-                        Cancel
-                      </Button>
-                    </div>
+                    {/* Method 1: Dropdown Selection */}
+                    {!isLinkSelectionMode && (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-xs">From Node</Label>
+                          <Select
+                            value={selectedNodes[0] || ''}
+                            onValueChange={(value) => {
+                              setSelectedNodes(prev => [value, prev[1] || '']);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select source node" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {graphData.nodes.map(node => (
+                                <SelectItem key={node.id} value={node.id}>
+                                  {node.id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">To Node</Label>
+                          <Select
+                            value={selectedNodes[1] || ''}
+                            onValueChange={(value) => {
+                              setSelectedNodes(prev => [prev[0] || '', value]);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select target node" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {graphData.nodes
+                                .filter(node => node.id !== selectedNodes[0])
+                                .map(node => (
+                                  <SelectItem key={node.id} value={node.id}>
+                                    {node.id}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => {
+                              if (selectedNodes.length === 2 && selectedNodes[0] && selectedNodes[1]) {
+                                addLink();
+                              } else {
+                                alert("Please select both source and target nodes");
+                              }
+                            }} 
+                            size="sm" 
+                            className="flex-1"
+                            disabled={!selectedNodes[0] || !selectedNodes[1]}
+                          >
+                            Create Link
+                          </Button>
+                          <Button 
+                            onClick={startLinkSelection} 
+                            size="sm" 
+                            className="flex-1"
+                            variant="outline"
+                          >
+                            Or Click Nodes
+                          </Button>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Method 2: Click on Nodes */}
+                    {isLinkSelectionMode && (
+                      <>
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-sm font-medium mb-2">Click Mode Active</p>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Click on two nodes in the 3D graph to connect them
+                          </p>
+                          <div className="text-sm">
+                            Selected: {selectedNodes.filter(n => n).join(" → ") || "None"}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={addLink} 
+                            size="sm" 
+                            className="flex-1"
+                            disabled={selectedNodes.length !== 2 || !selectedNodes[0] || !selectedNodes[1]}
+                          >
+                            Create Link
+                          </Button>
+                          <Button 
+                            onClick={cancelLinkSelection} 
+                            size="sm" 
+                            className="flex-1"
+                            variant="outline"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -686,7 +801,7 @@ function App() {
         ref={graphRef}
         graphData={graphData}
         nodeLabel="id"
-        nodeColor={node => selectedNodes.includes(node.id) ? '#FFD700' : node.color || '#1A75FF'}
+        nodeColor={node => (isLinkSelectionMode && selectedNodes.includes(node.id)) ? '#FFD700' : (node.color || '#1A75FF')}
         onNodeClick={handleNodeClick}
         linkColor={link => link.color || '#F0F0F0'}
         linkOpacity={0.8}
