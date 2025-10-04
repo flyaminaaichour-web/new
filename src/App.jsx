@@ -26,6 +26,8 @@ function App() {
   const [isLinkSelectionMode, setIsLinkSelectionMode] = useState(false); // Mode for selecting nodes to create links
   const [selectedNodeForEdit, setSelectedNodeForEdit] = useState(null); // Node selected for property editing
   const [selectedLinkForEdit, setSelectedLinkForEdit] = useState(null); // Link selected for property editing
+  const [pullDistance, setPullDistance] = useState(50); // Percentage to pull node closer (0-100%)
+  const [selectedNodeToPull, setSelectedNodeToPull] = useState(null); // Node to pull closer to selected node
 
   // Sample data for testing
   useEffect(() => {
@@ -169,6 +171,44 @@ function App() {
   const cancelLinkSelection = () => {
     setIsLinkSelectionMode(false);
     setSelectedNodes([]);
+  };
+
+  const pullNodeCloser = () => {
+    if (!selectedNodeForEdit || !selectedNodeToPull) {
+      alert("Please select a node to pull closer");
+      return;
+    }
+
+    const targetNode = graphData.nodes.find(n => n.id === selectedNodeForEdit.id);
+    const nodeToPull = graphData.nodes.find(n => n.id === selectedNodeToPull);
+
+    if (!targetNode || !nodeToPull) {
+      alert("Could not find selected nodes");
+      return;
+    }
+
+    // Calculate the vector from nodeToPull to targetNode
+    const dx = targetNode.x - nodeToPull.x;
+    const dy = targetNode.y - nodeToPull.y;
+    const dz = targetNode.z - nodeToPull.z;
+
+    // Calculate new position based on pull distance percentage
+    const pullFactor = pullDistance / 100;
+    const newX = nodeToPull.x + (dx * pullFactor);
+    const newY = nodeToPull.y + (dy * pullFactor);
+    const newZ = nodeToPull.z + (dz * pullFactor);
+
+    // Update the node position
+    setGraphData(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n =>
+        n.id === selectedNodeToPull
+          ? { ...n, x: newX, y: newY, z: newZ, fx: newX, fy: newY, fz: newZ }
+          : n
+      )
+    }));
+
+    alert(`Pulled ${selectedNodeToPull} ${pullDistance}% closer to ${selectedNodeForEdit.id}`);
   };
 
   const addNode = () => {
@@ -812,6 +852,74 @@ function App() {
                             />
                           </div>
                         </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <Separator />
+
+              {/* Pull Node Closer */}
+              <div className="space-y-3">
+                <Label>Pull Connected Node Closer</Label>
+                {(() => {
+                  const connectedNodeIds = graphData.links
+                    .filter(link => {
+                      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                      return sourceId === selectedNodeForEdit.id || targetId === selectedNodeForEdit.id;
+                    })
+                    .map(link => {
+                      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                      return sourceId === selectedNodeForEdit.id ? targetId : sourceId;
+                    })
+                    .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
+
+                  if (connectedNodeIds.length === 0) {
+                    return <p className="text-sm text-muted-foreground">No connected nodes to pull</p>;
+                  }
+
+                  return (
+                    <>
+                      <Select
+                        value={selectedNodeToPull || ''}
+                        onValueChange={(value) => setSelectedNodeToPull(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select node to pull" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {connectedNodeIds.map(nodeId => (
+                            <SelectItem key={nodeId} value={nodeId}>
+                              {nodeId}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedNodeToPull && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Pull Distance: {pullDistance}%</Label>
+                            <Slider
+                              value={[pullDistance]}
+                              onValueChange={(value) => setPullDistance(value[0])}
+                              min={10}
+                              max={100}
+                              step={5}
+                              className="w-full"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {pullDistance}% of the distance between nodes
+                            </p>
+                          </div>
+
+                          <Button onClick={pullNodeCloser} size="sm" className="w-full">
+                            Pull {selectedNodeToPull} Closer
+                          </Button>
+                        </>
                       )}
                     </>
                   );
