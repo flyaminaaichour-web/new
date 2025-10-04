@@ -28,6 +28,14 @@ function App() {
   const [selectedLinkForEdit, setSelectedLinkForEdit] = useState(null); // Link selected for property editing
   const [pullDistance, setPullDistance] = useState(50); // Percentage to pull node closer (0-100%)
   const [selectedNodeToPull, setSelectedNodeToPull] = useState(null); // Node to pull closer to selected node
+  
+  // Camera control states
+  const [showCameraControls, setShowCameraControls] = useState(false);
+  const [autoRotate, setAutoRotate] = useState(false);
+  const [rotationSpeed, setRotationSpeed] = useState(1);
+  const [cameraBookmarks, setCameraBookmarks] = useState([]);
+  const [bookmarkName, setBookmarkName] = useState('');
+  const autoRotateRef = useRef(null);
 
   // Sample data for testing
   useEffect(() => {
@@ -394,6 +402,84 @@ function App() {
     );
   }, []);
 
+  // Camera control functions
+  const setCameraView = useCallback((position, lookAt, duration = 2000) => {
+    graphRef.current.cameraPosition(position, lookAt, duration);
+  }, []);
+
+  const setPresetView = useCallback((viewType) => {
+    const distance = 400;
+    const views = {
+      top: { pos: { x: 0, y: distance, z: 0 }, lookAt: { x: 0, y: 0, z: 0 } },
+      bottom: { pos: { x: 0, y: -distance, z: 0 }, lookAt: { x: 0, y: 0, z: 0 } },
+      front: { pos: { x: 0, y: 0, z: distance }, lookAt: { x: 0, y: 0, z: 0 } },
+      back: { pos: { x: 0, y: 0, z: -distance }, lookAt: { x: 0, y: 0, z: 0 } },
+      left: { pos: { x: -distance, y: 0, z: 0 }, lookAt: { x: 0, y: 0, z: 0 } },
+      right: { pos: { x: distance, y: 0, z: 0 }, lookAt: { x: 0, y: 0, z: 0 } },
+      isometric: { pos: { x: distance * 0.7, y: distance * 0.7, z: distance * 0.7 }, lookAt: { x: 0, y: 0, z: 0 } },
+    };
+    const view = views[viewType];
+    if (view) {
+      setCameraView(view.pos, view.lookAt);
+    }
+  }, [setCameraView]);
+
+  const saveBookmark = useCallback(() => {
+    if (!bookmarkName.trim()) {
+      alert('Please enter a bookmark name');
+      return;
+    }
+    const camera = graphRef.current.camera();
+    const bookmark = {
+      name: bookmarkName,
+      position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      lookAt: { x: 0, y: 0, z: 0 } // Simplified - always look at center
+    };
+    setCameraBookmarks(prev => [...prev, bookmark]);
+    setBookmarkName('');
+    alert(`Bookmark "${bookmarkName}" saved!`);
+  }, [bookmarkName]);
+
+  const loadBookmark = useCallback((bookmark) => {
+    setCameraView(bookmark.position, bookmark.lookAt);
+  }, [setCameraView]);
+
+  const deleteBookmark = useCallback((index) => {
+    setCameraBookmarks(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  // Auto-rotate effect
+  useEffect(() => {
+    if (autoRotate && graphRef.current) {
+      const angle = rotationSpeed * 0.005;
+      autoRotateRef.current = setInterval(() => {
+        const camera = graphRef.current.camera();
+        const radius = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
+        const currentAngle = Math.atan2(camera.position.z, camera.position.x);
+        const newAngle = currentAngle + angle;
+        
+        graphRef.current.cameraPosition(
+          {
+            x: radius * Math.cos(newAngle),
+            y: camera.position.y,
+            z: radius * Math.sin(newAngle)
+          },
+          { x: 0, y: 0, z: 0 },
+          0
+        );
+      }, 50);
+    } else if (autoRotateRef.current) {
+      clearInterval(autoRotateRef.current);
+      autoRotateRef.current = null;
+    }
+
+    return () => {
+      if (autoRotateRef.current) {
+        clearInterval(autoRotateRef.current);
+      }
+    };
+  }, [autoRotate, rotationSpeed]);
+
   return (
     <div className="w-screen h-screen m-0 relative bg-background">
       {/* Control Panel */}
@@ -615,10 +701,13 @@ function App() {
 
               <Separator />
 
-              {/* OG Mode Toggle */}
+              {/* OG Mode and Camera Controls Toggle */}
               <div className="space-y-2">
                 <Button onClick={() => setShowOGMode(prev => !prev)} size="sm" className="w-full">
                   {showOGMode ? "Hide OG Mode" : "Show OG Mode"}
+                </Button>
+                <Button onClick={() => setShowCameraControls(prev => !prev)} size="sm" className="w-full" variant="outline">
+                  {showCameraControls ? "Hide Camera Controls" : "Show Camera Controls"}
                 </Button>
               </div>
 
@@ -672,6 +761,137 @@ function App() {
               </div>
               <div className="text-sm text-muted-foreground">
                 Recorded OG Positions: {recordedOGPositions.nodes.length} nodes, {recordedOGPositions.links.length} links
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Camera Controls Panel */}
+      {showCameraControls && (
+        <div className="absolute bottom-4 left-4 z-10 w-80 max-h-[80vh] overflow-y-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Camera Controls
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCameraControls(false)}
+                >
+                  Hide
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Preset Views */}
+              <div className="space-y-2">
+                <Label>Preset Views</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={() => setPresetView('top')} size="sm" variant="outline">
+                    Top
+                  </Button>
+                  <Button onClick={() => setPresetView('bottom')} size="sm" variant="outline">
+                    Bottom
+                  </Button>
+                  <Button onClick={() => setPresetView('front')} size="sm" variant="outline">
+                    Front
+                  </Button>
+                  <Button onClick={() => setPresetView('back')} size="sm" variant="outline">
+                    Back
+                  </Button>
+                  <Button onClick={() => setPresetView('left')} size="sm" variant="outline">
+                    Left
+                  </Button>
+                  <Button onClick={() => setPresetView('right')} size="sm" variant="outline">
+                    Right
+                  </Button>
+                  <Button onClick={() => setPresetView('isometric')} size="sm" variant="outline" className="col-span-2">
+                    Isometric
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Auto-Rotate */}
+              <div className="space-y-2">
+                <Label>Auto-Rotate</Label>
+                <Button
+                  onClick={() => setAutoRotate(prev => !prev)}
+                  size="sm"
+                  className="w-full"
+                  variant={autoRotate ? "default" : "outline"}
+                >
+                  {autoRotate ? "Stop Rotation" : "Start Rotation"}
+                </Button>
+                {autoRotate && (
+                  <div className="space-y-2">
+                    <Label>Rotation Speed: {rotationSpeed}x</Label>
+                    <Slider
+                      value={[rotationSpeed]}
+                      onValueChange={(value) => setRotationSpeed(value[0])}
+                      min={0.1}
+                      max={5}
+                      step={0.1}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Camera Bookmarks */}
+              <div className="space-y-2">
+                <Label>Camera Bookmarks</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Bookmark name"
+                    value={bookmarkName}
+                    onChange={(e) => setBookmarkName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button onClick={saveBookmark} size="sm">
+                    Save
+                  </Button>
+                </div>
+                {cameraBookmarks.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    {cameraBookmarks.map((bookmark, index) => (
+                      <div key={index} className="flex gap-2 items-center">
+                        <Button
+                          onClick={() => loadBookmark(bookmark)}
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          {bookmark.name}
+                        </Button>
+                        <Button
+                          onClick={() => deleteBookmark(index)}
+                          size="sm"
+                          variant="destructive"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {cameraBookmarks.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No bookmarks saved</p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Quick Actions */}
+              <div className="space-y-2">
+                <Label>Quick Actions</Label>
+                <Button onClick={handleZoomOut} size="sm" className="w-full" variant="outline">
+                  Reset to Default View
+                </Button>
               </div>
             </CardContent>
           </Card>
