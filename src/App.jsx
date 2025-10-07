@@ -236,16 +236,49 @@ function App() {
       return;
     }
 
+    let nodePosition;
+    
+    // If a target node is selected, position the new node closer to it
+    if (selectedNodeToPull) {
+      const targetNode = graphData.nodes.find(n => n.id === selectedNodeToPull);
+      if (targetNode) {
+        // Position the new node near the target node with some random offset
+        const offset = 30; // Distance from target node
+        const randomAngle = Math.random() * Math.PI * 2;
+        const randomElevation = (Math.random() - 0.5) * Math.PI * 0.5;
+        
+        nodePosition = {
+          x: targetNode.x + Math.cos(randomAngle) * Math.cos(randomElevation) * offset,
+          y: targetNode.y + Math.sin(randomElevation) * offset,
+          z: targetNode.z + Math.sin(randomAngle) * Math.cos(randomElevation) * offset,
+        };
+      } else {
+        // Fallback to camera position if target node not found
+        nodePosition = {
+          x: cameraPos.x + cameraDir.x * 50,
+          y: cameraPos.y + cameraDir.y * 50,
+          z: cameraPos.z + cameraDir.z * 50,
+        };
+      }
+    } else {
+      // Default behavior: position relative to camera
+      nodePosition = {
+        x: cameraPos.x + cameraDir.x * 50,
+        y: cameraPos.y + cameraDir.y * 50,
+        z: cameraPos.z + cameraDir.z * 50,
+      };
+    }
+
     const newNode = {
       id: newNodeId.trim(),
       color: '#1A75FF',
       textSize: 6,
-      x: cameraPos.x + cameraDir.x * 50, // Smaller distance
-      y: cameraPos.y + cameraDir.y * 50,
-      z: cameraPos.z + cameraDir.z * 50,
-      fx: cameraPos.x + cameraDir.x * 50, // Fix position
-      fy: cameraPos.y + cameraDir.y * 50,
-      fz: cameraPos.z + cameraDir.z * 50,
+      x: nodePosition.x,
+      y: nodePosition.y,
+      z: nodePosition.z,
+      fx: nodePosition.x, // Fix position
+      fy: nodePosition.y,
+      fz: nodePosition.z,
     };
 
     setGraphData(prev => ({
@@ -254,6 +287,11 @@ function App() {
     }));
 
     setNewNodeId('');
+    
+    // Reset the selected target node after adding
+    if (selectedNodeToPull) {
+      setSelectedNodeToPull(null);
+    }
 
     // Auto-focus camera on the newly created node
     setTimeout(() => {
@@ -570,6 +608,28 @@ function App() {
                 <Button onClick={addNode} size="sm" className="w-full">
                   Add Node
                 </Button>
+                
+                {/* Bring closer to functionality */}
+                {graphData.nodes.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <Label className="text-xs">Bring closer to</Label>
+                    <Select
+                      value={selectedNodeToPull || ''}
+                      onValueChange={(value) => setSelectedNodeToPull(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target node" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {graphData.nodes.map(node => (
+                          <SelectItem key={node.id} value={node.id}>
+                            {node.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <Separator />
