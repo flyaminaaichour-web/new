@@ -240,9 +240,12 @@ function App() {
       id: newNodeId.trim(),
       color: '#1A75FF',
       textSize: 6,
-      x: cameraPos.x + cameraDir.x * 100,
-      y: cameraPos.y + cameraDir.y * 100,
-      z: cameraPos.z + cameraDir.z * 100,
+      x: cameraPos.x + cameraDir.x * 50, // Smaller distance
+      y: cameraPos.y + cameraDir.y * 50,
+      z: cameraPos.z + cameraDir.z * 50,
+      fx: cameraPos.x + cameraDir.x * 50, // Fix position
+      fy: cameraPos.y + cameraDir.y * 50,
+      fz: cameraPos.z + cameraDir.z * 50,
     };
 
     setGraphData(prev => ({
