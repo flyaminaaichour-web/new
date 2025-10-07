@@ -223,6 +223,10 @@ function App() {
   };
 
   const addNode = () => {
+    const camera = graphRef.current.camera();
+    const cameraPos = camera.position;
+    const cameraDir = camera.getWorldDirection(new THREE.Vector3());
+
     if (!newNodeId.trim()) {
       alert('Please enter a node ID');
       return;
@@ -236,9 +240,9 @@ function App() {
       id: newNodeId.trim(),
       color: '#1A75FF',
       textSize: 6,
-      x: Math.random() * 200 - 100,
-      y: Math.random() * 200 - 100,
-      z: Math.random() * 200 - 100,
+      x: cameraPos.x + cameraDir.x * 100,
+      y: cameraPos.y + cameraDir.y * 100,
+      z: cameraPos.z + cameraDir.z * 100,
     };
 
     setGraphData(prev => ({
