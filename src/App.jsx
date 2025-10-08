@@ -26,6 +26,8 @@ function App() {
   const [isLinkSelectionMode, setIsLinkSelectionMode] = useState(false); // Mode for selecting nodes to create links
   const [selectedNodeForEdit, setSelectedNodeForEdit] = useState(null); // Node selected for property editing
   const [selectedLinkForEdit, setSelectedLinkForEdit] = useState(null); // Link selected for property editing
+  const [copiedNodeStyle, setCopiedNodeStyle] = useState(null); // State to store copied node style
+  const [copiedLinkStyle, setCopiedLinkStyle] = useState(null); // State to store copied link style
   const [pullDistance, setPullDistance] = useState(50); // Percentage to pull node closer (0-100%)
   const [selectedNodeToPull, setSelectedNodeToPull] = useState(null); // Node to pull closer to selected node
   
@@ -388,9 +390,9 @@ function App() {
     if (showOGMode) {
       const fixedPositions = graphData.nodes.filter(n => n.fx !== null && n.fy !== null && n.fz !== null).map(n => ({
         id: n.id,
-        x: n.fx,
-        y: n.fy,
-        z: n.fz,
+        x: n.x,
+        y: n.y,
+        z: n.z,
       }));
       const recordedLinks = graphData.links.map(link => ({
         source: typeof link.source === 'object' ? link.source.id : link.source,
@@ -401,6 +403,88 @@ function App() {
       setRecordedOGPositions({ nodes: fixedPositions, links: recordedLinks });
     }
   }, [showOGMode, graphData.nodes, graphData.links]);
+
+  const handleNextNode = useCallback(() => {
+    if (!graphData.nodes || graphData.nodes.length === 0) {
+      setSelectedNodeForEdit(null);
+      return;
+    }
+
+    let nextNodeIndex = 0;
+    if (selectedNodeForEdit) {
+      const currentIndex = graphData.nodes.findIndex(n => n.id === selectedNodeForEdit.id);
+      nextNodeIndex = (currentIndex + 1) % graphData.nodes.length;
+    }
+    setSelectedNodeForEdit(graphData.nodes[nextNodeIndex]);
+    setSelectedLinkForEdit(null); // Reset selected link when changing node
+  }, [graphData.nodes, selectedNodeForEdit]);
+
+  const handleCopyNodeStyle = useCallback(() => {
+    if (selectedNodeForEdit) {
+      setCopiedNodeStyle({
+        color: selectedNodeForEdit.color,
+        textSize: selectedNodeForEdit.textSize,
+      });
+      alert(`Style of node ${selectedNodeForEdit.id} copied!`);
+    } else {
+      alert("No node selected to copy style from.");
+    }
+  }, [selectedNodeForEdit]);
+
+  const handleApplyNodeStyle = useCallback(() => {
+    if (selectedNodeForEdit && copiedNodeStyle) {
+      setGraphData(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n =>
+          n.id === selectedNodeForEdit.id
+            ? { ...n, ...copiedNodeStyle }
+            : n
+        )
+      }));
+      setSelectedNodeForEdit(prev => ({ ...prev, ...copiedNodeStyle }));
+      alert(`Style applied to node ${selectedNodeForEdit.id}!`);
+    } else if (!copiedNodeStyle) {
+      alert("No node style copied yet.");
+    } else {
+      alert("No node selected to apply style to.");
+    }
+  }, [selectedNodeForEdit, copiedNodeStyle]);
+
+  const handleCopyLinkStyle = useCallback(() => {
+    if (selectedLinkForEdit) {
+      setCopiedLinkStyle({
+        color: selectedLinkForEdit.color,
+        thickness: selectedLinkForEdit.thickness,
+      });
+      alert(`Style of link ${typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source} -> ${typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target} copied!`);
+    } else {
+      alert("No link selected to copy style from.");
+    }
+  }, [selectedLinkForEdit]);
+
+  const handleApplyLinkStyle = useCallback(() => {
+    if (selectedLinkForEdit && copiedLinkStyle) {
+      setGraphData(prev => ({
+        ...prev,
+        links: prev.links.map(l => {
+          const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
+          const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
+          const sSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+          const sTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+
+          return (lSourceId === sSourceId && lTargetId === sTargetId)
+            ? { ...l, ...copiedLinkStyle }
+            : l;
+        })
+      }));
+      setSelectedLinkForEdit(prev => ({ ...prev, ...copiedLinkStyle }));
+      alert(`Style applied to link ${typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source} -> ${typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target}!`);
+    } else if (!copiedLinkStyle) {
+      alert("No link style copied yet.");
+    } else {
+      alert("No link selected to apply style to.");
+    }
+  }, [selectedLinkForEdit, copiedLinkStyle]);
 
   const handleNodeClick = useCallback(node => {
     if (isFocusMode) {
@@ -437,6 +521,11 @@ function App() {
       setSelectedLinkForEdit(null); // Reset selected link
     }
   }, [isFocusMode, isLinkSelectionMode]);
+
+  const handleLinkClick = useCallback(link => {
+    setSelectedLinkForEdit(link);
+    setSelectedNodeForEdit(null); // Reset selected node
+  }, []);
 
   const handleZoomOut = useCallback(() => {
     // Reset camera to a default zoomed-out position
@@ -489,47 +578,57 @@ function App() {
     setCameraView(bookmark.position, bookmark.lookAt);
   }, [setCameraView]);
 
-  const deleteBookmark = useCallback((index) => {
-    setCameraBookmarks(prev => prev.filter((_, i) => i !== index));
+  const deleteBookmark = useCallback((indexToDelete) => {
+    setCameraBookmarks(prev => prev.filter((_, index) => index !== indexToDelete));
   }, []);
 
-  // Auto-rotate effect
+  useEffect(() => {
+    if (graphRef.current) {
+      graphRef.current.d3Force('charge').strength(-120);
+      graphRef.current.d3Force('link').distance(link => link.distance || 50);
+      graphRef.current.d3Force('center', null); // Disable centering force
+    }
+  }, []);
+
   useEffect(() => {
     if (autoRotate && graphRef.current) {
-      const angle = rotationSpeed * 0.005;
       autoRotateRef.current = setInterval(() => {
-        const camera = graphRef.current.camera();
-        const radius = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
-        const currentAngle = Math.atan2(camera.position.z, camera.position.x);
-        const newAngle = currentAngle + angle;
-        
-        graphRef.current.cameraPosition(
-          {
-            x: radius * Math.cos(newAngle),
-            y: camera.position.y,
-            z: radius * Math.sin(newAngle)
-          },
-          { x: 0, y: 0, z: 0 },
-          0
-        );
-      }, 50);
-    } else if (autoRotateRef.current) {
+        graphRef.current.cameraPosition({
+          x: graphRef.current.cameraPosition().x * Math.cos(0.005 * rotationSpeed) - graphRef.current.cameraPosition().z * Math.sin(0.005 * rotationSpeed),
+          y: graphRef.current.cameraPosition().y,
+          z: graphRef.current.cameraPosition().z * Math.cos(0.005 * rotationSpeed) + graphRef.current.cameraPosition().x * Math.sin(0.005 * rotationSpeed),
+        }, { x: 0, y: 0, z: 0 }, 0);
+      }, 10);
+    } else {
       clearInterval(autoRotateRef.current);
-      autoRotateRef.current = null;
     }
-
-    return () => {
-      if (autoRotateRef.current) {
-        clearInterval(autoRotateRef.current);
-      }
-    };
+    return () => clearInterval(autoRotateRef.current);
   }, [autoRotate, rotationSpeed]);
 
   return (
-    <div className="w-screen h-screen m-0 relative bg-background">
-      {/* Control Panel */}
+    <div className="relative h-screen w-screen bg-black text-white">
+      <ForceGraph3D
+        ref={graphRef}
+        graphData={graphData}
+        nodeLabel="id"
+        nodeAutoColorBy="group"
+        nodeThreeObject={node => {
+          const sprite = new SpriteText(node.id);
+          sprite.color = node.color || 'white';
+          sprite.textHeight = node.textSize || 6;
+          return sprite;
+        }}
+        linkWidth={link => link.thickness || 1}
+        linkColor={link => link.color || '#F0F0F0'}
+        onNodeClick={handleNodeClick}
+        onLinkClick={handleLinkClick}
+        onNodeDragEnd={onNodeDragEnd}
+        backgroundColor="#000000"
+      />
+
+      {/* Controls Panel */}
       {showControls && (
-        <div className="absolute top-4 left-4 z-10 w-80">
+        <div className="absolute top-4 left-4 z-10 w-80 max-h-[90vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -981,21 +1080,38 @@ function App() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 Edit Node: {selectedNodeForEdit.id}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedNodeForEdit(null);
-                    setSelectedLinkForEdit(null);
-                  }}
-                >
-                  Close
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextNode}
+                  >
+                    Next Node
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedNodeForEdit(null);
+                      setSelectedLinkForEdit(null);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Node Properties */}
               <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyNodeStyle} size="sm" variant="outline" className="flex-1">
+                    Copy Node Style
+                  </Button>
+                  <Button onClick={handleApplyNodeStyle} size="sm" variant="outline" className="flex-1" disabled={!copiedNodeStyle}>
+                    Apply Node Style
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   <Label>Node Color</Label>
                   <div className="flex gap-2 items-center">
@@ -1087,6 +1203,14 @@ function App() {
 
                       {selectedLinkForEdit && (
                         <div className="space-y-3 mt-3">
+                          <div className="flex gap-2 mb-3">
+                            <Button onClick={handleCopyLinkStyle} size="sm" variant="outline" className="flex-1">
+                              Copy Link Style
+                            </Button>
+                            <Button onClick={handleApplyLinkStyle} size="sm" variant="outline" className="flex-1" disabled={!copiedLinkStyle}>
+                              Apply Link Style
+                            </Button>
+                          </div>
                           <div className="space-y-2">
                             <Label>Link Color</Label>
                             <div className="flex gap-2 items-center">
@@ -1100,9 +1224,9 @@ function App() {
                                     links: prev.links.map(l => {
                                       const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
                                       const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
-                                      const selectedSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
-                                      const selectedTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
-                                      return (lSourceId === selectedSourceId && lTargetId === selectedTargetId)
+                                      const sSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                                      const sTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                                      return (lSourceId === sSourceId && lTargetId === sTargetId)
                                         ? { ...l, color: newColor }
                                         : l;
                                     })
@@ -1116,7 +1240,7 @@ function App() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label>Link Thickness: {selectedLinkForEdit.thickness || 1}</Label>
+                            <Label>Thickness: {selectedLinkForEdit.thickness || 1}</Label>
                             <Slider
                               value={[selectedLinkForEdit.thickness || 1]}
                               onValueChange={(value) => {
@@ -1126,90 +1250,22 @@ function App() {
                                   links: prev.links.map(l => {
                                     const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
                                     const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
-                                    const selectedSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
-                                    const selectedTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
-                                    return (lSourceId === selectedSourceId && lTargetId === selectedTargetId)
+                                    const sSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                                    const sTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                                    return (lSourceId === sSourceId && lTargetId === sTargetId)
                                       ? { ...l, thickness: newThickness }
                                       : l;
                                   })
                                 }));
                                 setSelectedLinkForEdit(prev => ({ ...prev, thickness: newThickness }));
                               }}
-                              min={1}
+                              min={0.1}
                               max={10}
-                              step={0.5}
+                              step={0.1}
                               className="w-full"
                             />
                           </div>
                         </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <Separator />
-
-              {/* Pull Node Closer */}
-              <div className="space-y-3">
-                <Label>Move This Node Closer To...</Label>
-                {(() => {
-                  const connectedNodeIds = graphData.links
-                    .filter(link => {
-                      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-                      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-                      return sourceId === selectedNodeForEdit.id || targetId === selectedNodeForEdit.id;
-                    })
-                    .map(link => {
-                      const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-                      const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-                      return sourceId === selectedNodeForEdit.id ? targetId : sourceId;
-                    })
-                    .filter((id, index, self) => self.indexOf(id) === index); // Remove duplicates
-
-                  if (connectedNodeIds.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No connected nodes available</p>;
-                  }
-
-                  return (
-                    <>
-                      <Select
-                        value={selectedNodeToPull || ''}
-                        onValueChange={(value) => setSelectedNodeToPull(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select target node" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {connectedNodeIds.map(nodeId => (
-                            <SelectItem key={nodeId} value={nodeId}>
-                              {nodeId}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      {selectedNodeToPull && (
-                        <>
-                          <div className="space-y-2">
-                            <Label>Move Distance: {pullDistance}%</Label>
-                            <Slider
-                              value={[pullDistance]}
-                              onValueChange={(value) => setPullDistance(value[0])}
-                              min={10}
-                              max={100}
-                              step={5}
-                              className="w-full"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Move {selectedNodeForEdit.id} {pullDistance}% closer to {selectedNodeToPull}
-                            </p>
-                          </div>
-
-                          <Button onClick={pullNodeCloser} size="sm" className="w-full">
-                            Move Closer to {selectedNodeToPull}
-                          </Button>
-                        </>
                       )}
                     </>
                   );
@@ -1220,45 +1276,92 @@ function App() {
         </div>
       )}
 
-      {/* 3D Graph */}      <ForceGraph3D
-        ref={graphRef}
-        graphData={graphData}
-        nodeLabel="id"
-        nodeColor={node => (isLinkSelectionMode && selectedNodes.includes(node.id)) ? '#FFD700' : (node.color || '#1A75FF')}
-        onNodeClick={handleNodeClick}
-        linkColor={link => link.color || '#F0F0F0'}
-        linkOpacity={0.8}
-        linkWidth={link => link.thickness || 1}
-        linkThreeObjectExtend={true}
-        linkThreeObject={link => {
-          // Add text sprite for the link
-          const sprite = new SpriteText(
-            `${typeof link.source === 'object' ? link.source.id : link.source} → ${typeof link.target === 'object' ? link.target.id : link.target}`
-          );
-          sprite.color = link.color || '#F0F0F0';
-          sprite.textHeight = 1.5;
-          return sprite;
-        }}
-        linkPositionUpdate={(sprite, { start, end }) => {
-          // Update text sprite position
-          const middlePos = {
-            x: start.x + (end.x - start.x) / 2,
-            y: start.y + (end.y - start.y) / 2,
-            z: start.z + (end.z - start.z) / 2
-          };
-          Object.assign(sprite.position, middlePos);
-        }}
-        onNodeDragEnd={onNodeDragEnd}
-        nodeThreeObject={node => {
-          const sprite = new SpriteText(node.id);
-          sprite.material.depthWrite = false;
-          sprite.color = node.color || '#1A75FF';
-          sprite.textHeight = node.textSize || 6;
-          return sprite;
-        }}
-        width={window.innerWidth}
-        height={window.innerHeight}
-      />
+      {/* Link Property Editor Panel */}
+      {selectedLinkForEdit && !selectedNodeForEdit && (
+        <div className="absolute bottom-4 right-4 z-10 w-80">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Edit Link: {typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source} → {typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedLinkForEdit(null);
+                    setSelectedNodeForEdit(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2 mb-3">
+                <Button onClick={handleCopyLinkStyle} size="sm" variant="outline" className="flex-1">
+                  Copy Link Style
+                </Button>
+                <Button onClick={handleApplyLinkStyle} size="sm" variant="outline" className="flex-1" disabled={!copiedLinkStyle}>
+                  Apply Link Style
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label>Link Color</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="color"
+                    value={selectedLinkForEdit.color || '#F0F0F0'}
+                    onChange={(e) => {
+                      const newColor = e.target.value;
+                      setGraphData(prev => ({
+                        ...prev,
+                        links: prev.links.map(l => {
+                          const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                          const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
+                          const sSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                          const sTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                          return (lSourceId === sSourceId && lTargetId === sTargetId)
+                            ? { ...l, color: newColor }
+                            : l;
+                        })
+                      }));
+                      setSelectedLinkForEdit(prev => ({ ...prev, color: newColor }));
+                    }}
+                    className="w-20 h-10"
+                  />
+                  <span className="text-sm text-muted-foreground">{selectedLinkForEdit.color || '#F0F0F0'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Thickness: {selectedLinkForEdit.thickness || 1}</Label>
+                <Slider
+                  value={[selectedLinkForEdit.thickness || 1]}
+                  onValueChange={(value) => {
+                    const newThickness = value[0];
+                    setGraphData(prev => ({
+                      ...prev,
+                      links: prev.links.map(l => {
+                        const lSourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                        const lTargetId = typeof l.target === 'object' ? l.target.id : l.target;
+                        const sSourceId = typeof selectedLinkForEdit.source === 'object' ? selectedLinkForEdit.source.id : selectedLinkForEdit.source;
+                        const sTargetId = typeof selectedLinkForEdit.target === 'object' ? selectedLinkForEdit.target.id : selectedLinkForEdit.target;
+                        return (lSourceId === sSourceId && lTargetId === sTargetId)
+                          ? { ...l, thickness: newThickness }
+                          : l;
+                      })
+                    }));
+                    setSelectedLinkForEdit(prev => ({ ...prev, thickness: newThickness }));
+                  }}
+                  min={0.1}
+                  max={10}
+                  step={0.1}
+                  className="w-full"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
