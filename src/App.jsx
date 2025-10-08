@@ -619,7 +619,7 @@ function App() {
           return sprite;
         }}
         linkWidth={link => link.thickness || 1}
-        linkColor={link => link.color || '#F0F0F0'}
+        linkColor={link => link.color || 'rgba(240, 240, 240, 1)'}
         onNodeClick={handleNodeClick}
         onLinkClick={handleLinkClick}
         onNodeDragEnd={onNodeDragEnd}
