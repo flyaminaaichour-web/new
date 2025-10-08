@@ -312,6 +312,39 @@ function App() {
     }, 100); // Small delay to ensure node is rendered
   };
 
+  const deleteNode = (nodeId) => {
+    if (!nodeId) {
+      alert('Please select a node to delete');
+      return;
+    }
+
+    // Remove the node from the graph data
+    setGraphData(prev => ({
+      nodes: prev.nodes.filter(node => node.id !== nodeId),
+      // Also remove any links connected to this node
+      links: prev.links.filter(link => {
+        const linkSource = typeof link.source === 'object' ? link.source.id : link.source;
+        const linkTarget = typeof link.target === 'object' ? link.target.id : link.target;
+        return linkSource !== nodeId && linkTarget !== nodeId;
+      })
+    }));
+
+    // Clear selected node if it was the deleted one
+    if (selectedNodeForEdit && selectedNodeForEdit.id === nodeId) {
+      setSelectedNodeForEdit(null);
+    }
+
+    // Clear selected node to pull if it was the deleted one
+    if (selectedNodeToPull === nodeId) {
+      setSelectedNodeToPull(null);
+    }
+
+    // Remove from selected nodes array if present
+    setSelectedNodes(prev => prev.filter(id => id !== nodeId));
+
+    alert(`Node ${nodeId} and its connected links have been deleted successfully!`);
+  };
+
   const saveGraphData = () => {
     const cleanData = {
       nodes: graphData.nodes.map(({ id, color, textSize, group, x, y, z }) => ({
@@ -732,6 +765,50 @@ function App() {
               </div>
 
               <Separator />
+
+              {/* Delete Node */}
+              {graphData.nodes.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Delete Node</Label>
+                  <Select
+                    value={selectedNodeForEdit?.id || ''}
+                    onValueChange={(value) => {
+                      const node = graphData.nodes.find(n => n.id === value);
+                      setSelectedNodeForEdit(node || null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select node to delete" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {graphData.nodes.map(node => (
+                        <SelectItem key={node.id} value={node.id}>
+                          {node.id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    onClick={() => {
+                      if (selectedNodeForEdit) {
+                        if (window.confirm(`Are you sure you want to delete node "${selectedNodeForEdit.id}"? This will also remove all connected links.`)) {
+                          deleteNode(selectedNodeForEdit.id);
+                        }
+                      } else {
+                        alert('Please select a node to delete');
+                      }
+                    }} 
+                    size="sm" 
+                    className="w-full"
+                    variant="destructive"
+                    disabled={!selectedNodeForEdit}
+                  >
+                    Delete Node
+                  </Button>
+                </div>
+              )}
+
+              {graphData.nodes.length > 0 && <Separator />}
 
               {/* Add Link */}
               <div className="space-y-2">
