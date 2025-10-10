@@ -166,7 +166,7 @@ function App() {
     const newLink = {
       source,
       target,
-      color: '#F0F0F0',
+      color: 'rgba(240, 240, 240, 1)',
       thickness: 1,
     };
 
@@ -652,7 +652,29 @@ function App() {
           return sprite;
         }}
         linkWidth={link => link.thickness || 1}
-        linkColor={link => link.color || 'rgba(240, 240, 240, 1)'}
+        linkColor={link => {
+          const color = link.color || '#F0F0F0';
+          // Ensure the color is fully opaque. If it's a hex, convert to rgba(..., 1).
+          if (color.startsWith('#')) {
+            const hex = color.slice(1);
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, 1)`;
+          }
+          // If it's already rgba or rgb, ensure alpha is 1 if not specified
+          if (color.startsWith('rgb(') || color.startsWith('rgba(')) {
+            if (!color.includes('rgba(')) {
+              return color.replace('rgb(', 'rgba(').replace(')', ', 1)');
+            }
+            // If rgba, ensure alpha is 1
+            const parts = color.match(/\d+/g);
+            if (parts && parts.length === 4) {
+              return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, 1)`;
+            }
+          }
+          return color; // Fallback, should ideally not be reached
+        }}
         onNodeClick={handleNodeClick}
         onLinkClick={handleLinkClick}
         onNodeDragEnd={onNodeDragEnd}
