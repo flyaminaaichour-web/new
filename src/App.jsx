@@ -1022,41 +1022,37 @@ function App() {
               <div className="text-sm text-muted-foreground">
                 Recorded OG Positions: {recordedOGPositions.nodes.length} nodes, {recordedOGPositions.links.length} links
               </div>
+              
+              <Separator />
+              
+              {/* Remaining Fund Section */}
+              <div className="space-y-2 pt-2">
+                <div className="bg-black border-red-600 border-2 rounded-lg p-4">
+                  <h3 className="text-red-600 text-xl font-bold mb-3">Remaining Fund</h3>
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      White Nodes Count: {graphData.nodes.filter(node => {
+                        const color = (node.color || '').toLowerCase();
+                        return color === '#ffffff' || color === '#fff' || color === 'white';
+                      }).length}
+                    </div>
+                    <Separator />
+                    <div className="text-3xl font-bold text-red-600 text-center py-4">
+                      {(graphData.nodes.filter(node => {
+                        const color = (node.color || '').toLowerCase();
+                        return color === '#ffffff' || color === '#fff' || color === 'white';
+                      }).length * 100).toLocaleString()} QAR
+                    </div>
+                    <div className="text-xs text-muted-foreground text-center">
+                      The Amount
+                    </div>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
       )}
-
-      {/* Remaining Fund Panel */}
-      <div className="absolute top-4 right-4 z-10 w-80">
-        <Card className="bg-black border-red-600 border-2">
-          <CardHeader>
-            <CardTitle className="text-red-600 text-2xl font-bold">
-              Remaining Fund
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="text-sm text-muted-foreground">
-                White Nodes Count: {graphData.nodes.filter(node => {
-                  const color = (node.color || '').toLowerCase();
-                  return color === '#ffffff' || color === '#fff' || color === 'white';
-                }).length}
-              </div>
-              <Separator />
-              <div className="text-3xl font-bold text-red-600 text-center py-4">
-                {(graphData.nodes.filter(node => {
-                  const color = (node.color || '').toLowerCase();
-                  return color === '#ffffff' || color === '#fff' || color === 'white';
-                }).length * 100).toLocaleString()} QAR
-              </div>
-              <div className="text-xs text-muted-foreground text-center">
-                The Amount
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Camera Controls Panel */}
       {showCameraControls && (
