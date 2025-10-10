@@ -1027,6 +1027,37 @@ function App() {
         </div>
       )}
 
+      {/* Remaining Fund Panel */}
+      <div className="absolute top-4 right-4 z-10 w-80">
+        <Card className="bg-black border-red-600 border-2">
+          <CardHeader>
+            <CardTitle className="text-red-600 text-2xl font-bold">
+              Remaining Fund
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">
+                White Nodes Count: {graphData.nodes.filter(node => {
+                  const color = (node.color || '').toLowerCase();
+                  return color === '#ffffff' || color === '#fff' || color === 'white';
+                }).length}
+              </div>
+              <Separator />
+              <div className="text-3xl font-bold text-red-600 text-center py-4">
+                {(graphData.nodes.filter(node => {
+                  const color = (node.color || '').toLowerCase();
+                  return color === '#ffffff' || color === '#fff' || color === 'white';
+                }).length * 100).toLocaleString()} QAR
+              </div>
+              <div className="text-xs text-muted-foreground text-center">
+                The Amount
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Camera Controls Panel */}
       {showCameraControls && (
         <div className="absolute bottom-4 left-4 z-10 w-80 max-h-[80vh] overflow-y-auto">
