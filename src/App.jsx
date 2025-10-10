@@ -37,6 +37,7 @@ function App() {
   const [rotationSpeed, setRotationSpeed] = useState(1);
   const [cameraBookmarks, setCameraBookmarks] = useState([]);
   const [bookmarkName, setBookmarkName] = useState('');
+  const [selectedBookmarkFileForLoad, setSelectedBookmarkFileForLoad] = useState(null);
   const autoRotateRef = useRef(null);
 
   // Sample data for testing
@@ -615,6 +616,47 @@ function App() {
     setCameraBookmarks(prev => prev.filter((_, index) => index !== indexToDelete));
   }, []);
 
+  const importBookmarks = useCallback((file) => {
+    if (!file) {
+      alert("Please select a JSON file to load bookmarks.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const loadedBookmarks = JSON.parse(e.target.result);
+        if (!Array.isArray(loadedBookmarks) || !loadedBookmarks.every(b => b.name && b.position && b.lookAt)) {
+          throw new Error("Invalid bookmark file format.");
+        }
+        setCameraBookmarks(loadedBookmarks);
+        setSelectedBookmarkFileForLoad(null);
+        alert(`Loaded ${loadedBookmarks.length} camera bookmarks!`);
+      } catch (error) {
+        console.error("Error loading bookmarks:", error);
+        alert(`Error loading bookmarks: ${error.message}. Please ensure it's a valid JSON file with the correct format.`);
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const exportBookmarks = useCallback(() => {
+    if (cameraBookmarks.length === 0) {
+      alert("No bookmarks to export.");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(cameraBookmarks, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'camera_bookmarks.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    alert("Camera bookmarks exported to camera_bookmarks.json!");
+  }, [cameraBookmarks]);
+
   useEffect(() => {
     if (graphRef.current) {
       graphRef.current.d3Force('charge').strength(-120);
@@ -1143,6 +1185,27 @@ function App() {
                     Save
                   </Button>
                 </div>
+                <Button onClick={exportBookmarks} size="sm" className="w-full">
+                  Export Bookmarks
+                </Button>
+
+                <Separator className="my-3" />
+
+                <Label>Load Bookmarks File</Label>
+                <Input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => setSelectedBookmarkFileForLoad(e.target.files[0])}
+                />
+                <Button onClick={() => importBookmarks(selectedBookmarkFileForLoad)} size="sm" className="w-full">
+                  Load Bookmarks
+                </Button>
+                {selectedBookmarkFileForLoad && (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {selectedBookmarkFileForLoad.name}
+                  </p>
+                )}
+
                 {cameraBookmarks.length > 0 && (
                   <div className="space-y-1 mt-2">
                     {cameraBookmarks.map((bookmark, index) => (
