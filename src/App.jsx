@@ -682,10 +682,10 @@ function App() {
     reader.onload = (e) => {
       try {
         const loadedBookmarks = JSON.parse(e.target.result);
-        if (!Array.isArray(loadedBookmarks) || !loadedBookmarks.every(b => b.name && b.position && b.lookAt && b.up && b.zoom !== undefined && b.isOrthographic !== undefined)) {
+        if (!Array.isArray(loadedBookmarks) || !loadedBookmarks.every(b => b.name && b.position && b.lookAt && b.up && b.zoom !== undefined)) {
           throw new Error("Invalid bookmark file format.");
         }
-        setCameraBookmarks(loadedBookmarks);
+        setCameraBookmarks(loadedBookmarks.map(b => ({ ...b, isOrthographic: b.isOrthographic !== undefined ? b.isOrthographic : false })));
         setSelectedBookmarkFileForLoad(null);
         alert(`Loaded ${loadedBookmarks.length} camera bookmarks!`);
       } catch (error) {
