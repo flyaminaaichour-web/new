@@ -563,16 +563,69 @@ function App() {
 
   const handleZoomOut = useCallback(() => {
     // Reset camera to a default zoomed-out position
-    graphRef.current.cameraPosition(
+    setCameraView(
       { x: 0, y: 0, z: 500 }, // A reasonable default position
       { x: 0, y: 0, z: 0 },   // Look at the center
+      { x: 0, y: 1, z: 0 },   // Default up vector
+      1,                      // Default zoom
+      false,                  // Default to perspective camera
       3000                    // Transition duration
     );
   }, []);
 
   // Camera control functions
-  const setCameraView = useCallback((position, lookAt, duration = 2000) => {
+  const setCameraView = useCallback((position, lookAt, up, zoom, isOrthographic, duration = 2000) => {
+    const camera = graphRef.current.camera();
+    const controls = graphRef.current.controls();
+
+    // Set camera position and lookAt target
     graphRef.current.cameraPosition(position, lookAt, duration);
+
+    // Set up vector
+    if (up) {
+      camera.up.set(up.x, up.y, up.z);
+    }
+
+    // Set zoom level
+    if (zoom) {
+      camera.zoom = zoom;
+    }
+
+    // Set projection mode
+    if (isOrthographic !== undefined) {
+      if (isOrthographic && !(camera instanceof THREE.OrthographicCamera)) {
+        // Convert to OrthographicCamera
+        const aspect = camera.aspect || (window.innerWidth / window.innerHeight);
+        const frustumSize = camera.far - camera.near;
+        const newCamera = new THREE.OrthographicCamera(
+          -frustumSize * aspect / 2,
+          frustumSize * aspect / 2,
+          frustumSize / 2,
+          -frustumSize / 2,
+          camera.near,
+          camera.far
+        );
+        newCamera.position.copy(camera.position);
+        newCamera.quaternion.copy(camera.quaternion);
+        newCamera.zoom = camera.zoom; // Preserve zoom
+        graphRef.current.camera(newCamera);
+      } else if (!isOrthographic && !(camera instanceof THREE.PerspectiveCamera)) {
+        // Convert to PerspectiveCamera
+        const newCamera = new THREE.PerspectiveCamera(
+          camera.fov,
+          camera.aspect,
+          camera.near,
+          camera.far
+        );
+        newCamera.position.copy(camera.position);
+        newCamera.quaternion.copy(camera.quaternion);
+        newCamera.zoom = camera.zoom; // Preserve zoom
+        graphRef.current.camera(newCamera);
+      }
+    }
+
+    camera.updateProjectionMatrix();
+    controls.update();
   }, []);
 
   const setPresetView = useCallback((viewType) => {
@@ -588,7 +641,7 @@ function App() {
     };
     const view = views[viewType];
     if (view) {
-      setCameraView(view.pos, view.lookAt);
+      setCameraView(view.pos, view.lookAt, undefined, undefined, undefined);
     }
   }, [setCameraView]);
 
@@ -601,7 +654,10 @@ function App() {
     const bookmark = {
       name: bookmarkName,
       position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-      lookAt: { x: 0, y: 0, z: 0 } // Simplified - always look at center
+      lookAt: { x: graphRef.current.controls().target.x, y: graphRef.current.controls().target.y, z: graphRef.current.controls().target.z },
+      up: { x: camera.up.x, y: camera.up.y, z: camera.up.z },
+      zoom: camera.zoom,
+      isOrthographic: camera.isOrthographicCamera,
     };
     setCameraBookmarks(prev => [...prev, bookmark]);
     setBookmarkName('');
@@ -609,7 +665,7 @@ function App() {
   }, [bookmarkName]);
 
   const loadBookmark = useCallback((bookmark) => {
-    setCameraView(bookmark.position, bookmark.lookAt);
+    setCameraView(bookmark.position, bookmark.lookAt, bookmark.up, bookmark.zoom, bookmark.isOrthographic);
   }, [setCameraView]);
 
   const deleteBookmark = useCallback((indexToDelete) => {
@@ -626,7 +682,7 @@ function App() {
     reader.onload = (e) => {
       try {
         const loadedBookmarks = JSON.parse(e.target.result);
-        if (!Array.isArray(loadedBookmarks) || !loadedBookmarks.every(b => b.name && b.position && b.lookAt)) {
+        if (!Array.isArray(loadedBookmarks) || !loadedBookmarks.every(b => b.name && b.position && b.lookAt && b.up && b.zoom !== undefined && b.isOrthographic !== undefined)) {
           throw new Error("Invalid bookmark file format.");
         }
         setCameraBookmarks(loadedBookmarks);
@@ -668,11 +724,19 @@ function App() {
   useEffect(() => {
     if (autoRotate && graphRef.current) {
       autoRotateRef.current = setInterval(() => {
-        graphRef.current.cameraPosition({
-          x: graphRef.current.cameraPosition().x * Math.cos(0.005 * rotationSpeed) - graphRef.current.cameraPosition().z * Math.sin(0.005 * rotationSpeed),
-          y: graphRef.current.cameraPosition().y,
-          z: graphRef.current.cameraPosition().z * Math.cos(0.005 * rotationSpeed) + graphRef.current.cameraPosition().x * Math.sin(0.005 * rotationSpeed),
-        }, { x: 0, y: 0, z: 0 }, 0);
+        const currentCamera = graphRef.current.camera();
+        setCameraView(
+          {
+            x: currentCamera.position.x * Math.cos(0.005 * rotationSpeed) - currentCamera.position.z * Math.sin(0.005 * rotationSpeed),
+            y: currentCamera.position.y,
+            z: currentCamera.position.z * Math.cos(0.005 * rotationSpeed) + currentCamera.position.x * Math.sin(0.005 * rotationSpeed),
+          },
+          { x: 0, y: 0, z: 0 }, // Look at center
+          { x: currentCamera.up.x, y: currentCamera.up.y, z: currentCamera.up.z }, // Preserve current up vector
+          currentCamera.zoom, // Preserve current zoom
+          currentCamera.isOrthographicCamera, // Preserve current projection mode
+          0 // No transition duration
+        );
       }, 10);
     } else {
       clearInterval(autoRotateRef.current);
