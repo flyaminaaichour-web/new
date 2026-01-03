@@ -784,7 +784,7 @@ function App() {
 
       {/* Controls Panel */}
       {showControls && (
-        <div className="absolute top-4 left-4 z-10 w-80 max-h-[90vh] overflow-y-auto">
+        <div className="absolute top-4 left-4 z-10 w-[90%] sm:w-80 max-h-[90vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1090,7 +1090,7 @@ function App() {
 
       {/* OG Mode Panel */}
       {showOGMode && (
-        <div className="absolute top-4 right-4 z-10 w-80">
+        <div className="absolute top-4 right-4 z-10 w-[90%] sm:w-80 max-h-[90vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1162,7 +1162,7 @@ function App() {
 
       {/* Camera Controls Panel */}
       {showCameraControls && (
-        <div className="absolute bottom-4 left-4 z-10 w-80 max-h-[80vh] overflow-y-auto">
+        <div className="absolute bottom-4 left-4 z-10 w-[90%] sm:w-80 max-h-[80vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1323,7 +1323,7 @@ function App() {
 
       {/* Property Editor Panel */}
       {selectedNodeForEdit && (
-        <div className="absolute bottom-4 right-4 z-10 w-80">
+        <div className="absolute bottom-4 right-4 z-10 w-[90%] sm:w-80 max-h-[80vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
