@@ -1090,7 +1090,7 @@ function App() {
 
       {/* OG Mode Panel */}
       {showOGMode && (
-        <div className="absolute top-4 right-4 z-10 w-[20%] min-w-[150px] sm:w-80 max-h-[90vh] overflow-y-auto">
+        <div className="absolute top-4 right-4 z-10 w-[21%] min-w-[140px] sm:w-64 max-h-[80vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -1323,7 +1323,7 @@ function App() {
 
       {/* Property Editor Panel */}
       {selectedNodeForEdit && (
-        <div className="absolute bottom-4 right-4 z-10 w-[20%] min-w-[150px] sm:w-80 max-h-[80vh] overflow-y-auto">
+        <div className="absolute bottom-4 right-4 z-10 w-[14%] min-w-[105px] sm:w-56 max-h-[80vh] overflow-y-auto">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

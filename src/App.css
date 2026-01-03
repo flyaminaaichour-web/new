@@ -118,38 +118,53 @@
     @apply bg-background text-foreground;
   }
   
-  /* Global mobile font size reduction */
+  /* Global font size reduction (30% smaller than original) */
+  html {
+    font-size: 11.2px; /* 16px * 0.7 */
+  }
+
   @media (max-width: 640px) {
     html {
-      font-size: 12px;
+      font-size: 8.4px; /* 12px * 0.7 */
     }
     
     .text-sm {
-      font-size: 0.75rem; /* 9px */
+      font-size: 0.525rem; /* 0.75rem * 0.7 */
     }
     
     .text-xs {
-      font-size: 0.65rem; /* 7.8px */
+      font-size: 0.455rem; /* 0.65rem * 0.7 */
     }
     
     .text-base {
-      font-size: 0.875rem; /* 10.5px */
+      font-size: 0.6125rem; /* 0.875rem * 0.7 */
     }
     
     .text-lg {
-      font-size: 1rem; /* 12px */
+      font-size: 0.7rem; /* 1rem * 0.7 */
     }
     
     .text-xl {
-      font-size: 1.125rem; /* 13.5px */
+      font-size: 0.7875rem; /* 1.125rem * 0.7 */
     }
     
     .text-2xl {
-      font-size: 1.25rem; /* 15px */
+      font-size: 0.875rem; /* 1.25rem * 0.7 */
     }
     
     .text-3xl {
-      font-size: 1.5rem; /* 18px */
+      font-size: 1.05rem; /* 1.5rem * 0.7 */
     }
+  }
+
+  /* Reduce component widths by 30% */
+  [data-slot="button"], [data-slot="input"], [data-slot="select-trigger"] {
+    max-width: 70% !important;
+  }
+
+  /* Specific adjustment for the control panels in App.jsx */
+  .absolute.top-4.right-4, .absolute.bottom-4.right-4 {
+    width: 21% !important; /* 30% reduction from 30% is roughly 21% */
+    min-width: 105px !important; /* 30% reduction from 150px */
   }
 }
