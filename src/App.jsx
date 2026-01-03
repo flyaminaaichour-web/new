@@ -985,7 +985,7 @@ function App() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2">
                           <Button 
                             onClick={() => {
                               if (selectedNodes.length === 2 && selectedNodes[0] && selectedNodes[1]) {
@@ -995,7 +995,7 @@ function App() {
                               }
                             }} 
                             size="sm" 
-                            className="flex-1"
+                            className="w-full"
                             disabled={!selectedNodes[0] || !selectedNodes[1]}
                           >
                             Create Link
@@ -1003,7 +1003,7 @@ function App() {
                           <Button 
                             onClick={startLinkSelection} 
                             size="sm" 
-                            className="flex-1"
+                            className="w-full"
                             variant="outline"
                           >
                             Or Click Nodes
