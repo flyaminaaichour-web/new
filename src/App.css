@@ -117,4 +117,39 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Global mobile font size reduction */
+  @media (max-width: 640px) {
+    html {
+      font-size: 12px;
+    }
+    
+    .text-sm {
+      font-size: 0.75rem; /* 9px */
+    }
+    
+    .text-xs {
+      font-size: 0.65rem; /* 7.8px */
+    }
+    
+    .text-base {
+      font-size: 0.875rem; /* 10.5px */
+    }
+    
+    .text-lg {
+      font-size: 1rem; /* 12px */
+    }
+    
+    .text-xl {
+      font-size: 1.125rem; /* 13.5px */
+    }
+    
+    .text-2xl {
+      font-size: 1.25rem; /* 15px */
+    }
+    
+    .text-3xl {
+      font-size: 1.5rem; /* 18px */
+    }
+  }
 }

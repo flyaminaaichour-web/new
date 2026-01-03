@@ -1133,23 +1133,23 @@ function App() {
               
               {/* Remaining Fund Section */}
               <div className="space-y-2 pt-2">
-                <div className="bg-black border-red-600 border-2 rounded-lg p-4">
-                  <h3 className="text-red-600 text-xl font-bold mb-3">Remaining Fund</h3>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      White Nodes Count: {graphData.nodes.filter(node => {
+                <div className="bg-black border-red-600 border-2 rounded-lg p-2 sm:p-4">
+                  <h3 className="text-red-600 text-sm sm:text-xl font-bold mb-1 sm:mb-3">Remaining Fund</h3>
+                  <div className="space-y-1 sm:space-y-2">
+                    <div className="text-[10px] sm:text-sm text-muted-foreground">
+                      White Nodes: {graphData.nodes.filter(node => {
                         const color = (node.color || '').toLowerCase();
                         return color === '#ffffff' || color === '#fff' || color === 'white';
                       }).length}
                     </div>
                     <Separator />
-                    <div className="text-3xl font-bold text-red-600 text-center py-4">
+                    <div className="text-lg sm:text-3xl font-bold text-red-600 text-center py-2 sm:py-4">
                       {(graphData.nodes.filter(node => {
                         const color = (node.color || '').toLowerCase();
                         return color === '#ffffff' || color === '#fff' || color === 'white';
                       }).length * 100).toLocaleString()} QAR
                     </div>
-                    <div className="text-xs text-muted-foreground text-center">
+                    <div className="text-[8px] sm:text-xs text-muted-foreground text-center">
                       The Amount
                     </div>
                   </div>
